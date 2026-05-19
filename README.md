@@ -95,6 +95,14 @@ curl https://engine.medicalnewshub.info/status
 
 응답에는 앱이 바로 읽는 `watchlist`, `positions`, `orders`, `events`, `equity`, `regime`, `mode`, `risk_state`가 포함됩니다.
 
+맥북에서 버튼으로 서버를 켜고 끄려면 아래 파일을 더블클릭하세요.
+
+```text
+tools/server_control_gui.command
+```
+
+이 GUI는 기본적으로 3,300 USDT 가상 계좌, 실주문 비활성화 상태로 `status_server`를 실행합니다. 버튼은 `Start Server`, `Stop Server`, `Restart Server`, `Open Status`, `Open Log`, `Refresh`를 제공합니다.
+
 ## Market Internal Engine
 
 TradingView는 EMA/TOTAL/BTC.D 기반 시그널 계산기로 두고, 서버는 시장 내부 데이터를 계산합니다.
