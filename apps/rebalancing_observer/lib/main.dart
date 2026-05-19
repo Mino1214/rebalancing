@@ -113,15 +113,18 @@ class _ObserverHomePageState extends State<ObserverHomePage> {
               children: [
                 AppChrome(
                     snapshot: data, loading: loading, onRefresh: _refresh),
-                const WatchGroupTabs(),
+                WatchGroupTabs(
+                  selectedIndex: _selectedTab,
+                  onSelected: (index) => setState(() => _selectedTab = index),
+                ),
                 Expanded(
                   child: IndexedStack(
                     index: _selectedTab,
                     children: [
-                      WatchlistView(snapshot: data),
-                      RegimeView(snapshot: data),
-                      PortfolioView(snapshot: data),
-                      RiskView(snapshot: data),
+                      SummaryView(snapshot: data),
+                      PositionsView(snapshot: data),
+                      OrdersView(snapshot: data),
+                      MarketView(snapshot: data),
                       LogView(snapshot: data),
                     ],
                   ),
@@ -136,24 +139,24 @@ class _ObserverHomePageState extends State<ObserverHomePage> {
                 setState(() => _selectedTab = index),
             destinations: const [
               NavigationDestination(
-                icon: Icon(Icons.bookmark_border),
-                selectedIcon: Icon(Icons.bookmark),
-                label: '왓치리스트',
+                icon: Icon(Icons.dashboard_outlined),
+                selectedIcon: Icon(Icons.dashboard),
+                label: '요약',
               ),
               NavigationDestination(
-                icon: Icon(Icons.candlestick_chart_outlined),
-                selectedIcon: Icon(Icons.candlestick_chart),
-                label: '레짐',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.explore_outlined),
-                selectedIcon: Icon(Icons.explore),
+                icon: Icon(Icons.account_tree_outlined),
+                selectedIcon: Icon(Icons.account_tree),
                 label: '포지션',
               ),
               NavigationDestination(
-                icon: Icon(Icons.groups_2_outlined),
-                selectedIcon: Icon(Icons.groups_2),
-                label: '리스크',
+                icon: Icon(Icons.receipt_long_outlined),
+                selectedIcon: Icon(Icons.receipt_long),
+                label: '주문',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.timeline),
+                selectedIcon: Icon(Icons.timeline),
+                label: '시장',
               ),
               NavigationDestination(
                 icon: Icon(Icons.menu),
@@ -270,11 +273,18 @@ class AppChrome extends StatelessWidget {
 }
 
 class WatchGroupTabs extends StatelessWidget {
-  const WatchGroupTabs({super.key});
+  const WatchGroupTabs({
+    super.key,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    const tabs = ['FUTURE', 'my', 'Regime', 'usdt'];
+    const tabs = ['SUMMARY', 'position', 'orders', 'market', 'logs'];
     return SizedBox(
       height: 56,
       child: ListView.separated(
@@ -283,25 +293,30 @@ class WatchGroupTabs extends StatelessWidget {
         itemCount: tabs.length,
         separatorBuilder: (_, __) => const SizedBox(width: 26),
         itemBuilder: (context, index) {
-          final selected = tabs[index] == 'my';
+          final selected = index == selectedIndex;
           return Center(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: EdgeInsets.symmetric(
-                horizontal: selected ? 24 : 0,
-                vertical: selected ? 12 : 0,
-              ),
-              decoration: BoxDecoration(
-                color: selected ? const Color(0xFFF0F0F0) : Colors.transparent,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Text(
-                tabs[index],
-                style: TextStyle(
-                  color: selected ? Colors.black : const Color(0xFF777A80),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: () => onSelected(index),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: EdgeInsets.symmetric(
+                  horizontal: selected ? 24 : 0,
+                  vertical: selected ? 12 : 0,
+                ),
+                decoration: BoxDecoration(
+                  color:
+                      selected ? const Color(0xFFF0F0F0) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  tabs[index],
+                  style: TextStyle(
+                    color: selected ? Colors.black : const Color(0xFF777A80),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                  ),
                 ),
               ),
             ),
@@ -312,8 +327,8 @@ class WatchGroupTabs extends StatelessWidget {
   }
 }
 
-class WatchlistView extends StatelessWidget {
-  const WatchlistView({super.key, required this.snapshot});
+class SummaryView extends StatelessWidget {
+  const SummaryView({super.key, required this.snapshot});
 
   final EngineSnapshot snapshot;
 
@@ -321,45 +336,41 @@ class WatchlistView extends StatelessWidget {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: () async {},
-      child: WatchListScaffold(
-        items: snapshot.watchItems.isNotEmpty
-            ? snapshot.watchItems
-            : defaultWatchItems(snapshot),
-      ),
+      child: WatchListScaffold(items: summaryItems(snapshot)),
     );
   }
 }
 
-class RegimeView extends StatelessWidget {
-  const RegimeView({super.key, required this.snapshot});
+class PositionsView extends StatelessWidget {
+  const PositionsView({super.key, required this.snapshot});
 
   final EngineSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
-    return WatchListScaffold(items: decisionConsoleItems(snapshot));
+    return WatchListScaffold(items: positionItems(snapshot));
   }
 }
 
-class PortfolioView extends StatelessWidget {
-  const PortfolioView({super.key, required this.snapshot});
+class OrdersView extends StatelessWidget {
+  const OrdersView({super.key, required this.snapshot});
 
   final EngineSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
-    return WatchListScaffold(items: portfolioItems(snapshot));
+    return WatchListScaffold(items: orderItems(snapshot));
   }
 }
 
-class RiskView extends StatelessWidget {
-  const RiskView({super.key, required this.snapshot});
+class MarketView extends StatelessWidget {
+  const MarketView({super.key, required this.snapshot});
 
   final EngineSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
-    return WatchListScaffold(items: guardItems(snapshot));
+    return WatchListScaffold(items: marketItems(snapshot));
   }
 }
 
@@ -748,12 +759,18 @@ class OrderView {
     required this.action,
     required this.notional,
     required this.reduceOnly,
+    this.positionSide = '',
+    this.orderType = '',
+    this.reason = '',
   });
 
   final String symbol;
   final String action;
   final double notional;
   final bool reduceOnly;
+  final String positionSide;
+  final String orderType;
+  final String reason;
 
   factory OrderView.fromJson(Map<String, dynamic> json) {
     return OrderView(
@@ -761,6 +778,11 @@ class OrderView {
       action: (json['action'] ?? json['side'] ?? '-').toString(),
       notional: toDouble(json['notional']),
       reduceOnly: json['reduce_only'] == true || json['reduceOnly'] == true,
+      positionSide:
+          (json['position_side'] ?? json['positionSide'] ?? json['side'] ?? '')
+              .toString(),
+      orderType: (json['order_type'] ?? json['orderType'] ?? '').toString(),
+      reason: (json['reason'] ?? '').toString(),
     );
   }
 }
@@ -815,6 +837,155 @@ class WatchItem {
       meta: (json['meta'] ?? '').toString(),
     );
   }
+}
+
+List<WatchItem> summaryItems(EngineSnapshot snapshot) {
+  return [
+    WatchItem(
+      symbol: 'REGIME',
+      title: snapshot.marketBias,
+      value: snapshot.regime,
+      change: 'Score ${snapshot.regimeScore.toStringAsFixed(1)}',
+      changePct: snapshot.mode,
+      accent: regimeColor(snapshot.regime),
+      marker: 'R',
+      meta: 'Current decision',
+    ),
+    WatchItem(
+      symbol: 'EQUITY',
+      title: 'Virtual / Binance account equity',
+      value: compactUsdt(snapshot.equity),
+      change: 'Current ${compactUsdt(snapshot.currentExposure)}',
+      changePct: 'Target ${compactUsdt(snapshot.targetExposure)}',
+      accent: const Color(0xFF2563EB),
+      marker: 'E',
+      meta: snapshot.source,
+    ),
+    WatchItem(
+      symbol: 'LEVERAGE',
+      title: 'Total exposure usage',
+      value: '${snapshot.leverage.toStringAsFixed(2)}x',
+      change: snapshot.leverage <= 2 ? '+within' : '-over',
+      changePct: 'Max 2.00x',
+      accent: snapshot.leverage <= 2
+          ? const Color(0xFF2F8F75)
+          : const Color(0xFFC8404A),
+      marker: 'L',
+      meta: 'Cross 2x cap',
+    ),
+    WatchItem(
+      symbol: 'RISK',
+      title: snapshot.riskState,
+      value: pct(snapshot.dailyPnlPct),
+      change: 'W ${pct(snapshot.weeklyPnlPct)}',
+      changePct: 'M ${pct(snapshot.monthlyPnlPct)}',
+      accent: riskColor(snapshot.riskState),
+      marker: '!',
+      meta: snapshot.cooldownUntil ?? 'No cooldown',
+    ),
+  ];
+}
+
+List<WatchItem> positionItems(EngineSnapshot snapshot) {
+  if (snapshot.positions.isEmpty) {
+    return [
+      WatchItem(
+        symbol: 'FLAT',
+        title: 'No open futures position',
+        value: compactUsdt(snapshot.currentExposure),
+        change: 'neutral',
+        changePct: '0.00%',
+        accent: const Color(0xFF787B86),
+        marker: 'F',
+        meta: 'Current positions only',
+      ),
+    ];
+  }
+
+  return snapshot.positions
+      .map(
+        (position) => WatchItem(
+          symbol: position.symbol,
+          title: position.side,
+          value: compactUsdt(position.notional),
+          change: position.side,
+          changePct: snapshot.equity <= 0 || position.notional == 0
+              ? '0.00%'
+              : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
+          accent: sideColor(position.side),
+          marker: firstMarker(position.symbol),
+          meta: 'Current Binance position',
+        ),
+      )
+      .toList(growable: false);
+}
+
+List<WatchItem> orderItems(EngineSnapshot snapshot) {
+  if (snapshot.orders.isEmpty) {
+    return [
+      WatchItem(
+        symbol: 'NO ORDER',
+        title: 'No planned rebalance order',
+        value: compactUsdt(snapshot.targetExposure),
+        change: 'idle',
+        changePct: snapshot.mode,
+        accent: const Color(0xFF787B86),
+        marker: 'O',
+        meta: 'Orders only',
+      ),
+    ];
+  }
+
+  return snapshot.orders
+      .map(
+        (order) => WatchItem(
+          symbol: order.symbol,
+          title: [
+            order.action,
+            if (order.positionSide.isNotEmpty) order.positionSide,
+            if (order.reduceOnly) 'reduce-only',
+          ].join(' · '),
+          value: compactUsdt(order.notional),
+          change: order.orderType.isEmpty ? 'planned' : order.orderType,
+          changePct: order.reduceOnly ? 'reduce' : 'entry',
+          accent: order.reduceOnly
+              ? const Color(0xFFC08A17)
+              : const Color(0xFF2563EB),
+          marker: firstMarker(order.symbol),
+          meta: order.reason.isEmpty ? 'Planned order' : order.reason,
+        ),
+      )
+      .toList(growable: false);
+}
+
+List<WatchItem> marketItems(EngineSnapshot snapshot) {
+  final pinnedSymbols = {'INTERNALS', 'STABLE.D', 'TOP10.D'};
+  final hiddenSymbols = {'REGIME', 'EQUITY', 'RISK', 'LEVERAGE'};
+  final pinned = snapshot.watchItems
+      .where((item) => pinnedSymbols.contains(item.symbol))
+      .toList(growable: false);
+  final topCoins = snapshot.watchItems
+      .where((item) =>
+          !pinnedSymbols.contains(item.symbol) &&
+          !hiddenSymbols.contains(item.symbol))
+      .toList(growable: false);
+
+  if (pinned.isEmpty && topCoins.isEmpty) {
+    return [
+      WatchItem(
+        symbol: 'MARKET',
+        title: 'Waiting for market internals',
+        value: snapshot.marketBias,
+        change: snapshot.regime,
+        changePct: snapshot.mode,
+        accent: regimeColor(snapshot.regime),
+        marker: 'M',
+        meta: snapshot.lastUpdated,
+      ),
+    ];
+  }
+
+  return [...pinned, ...topCoins];
 }
 
 List<WatchItem> projectProgressItems(EngineSnapshot snapshot) {
