@@ -46,12 +46,15 @@ class RebalancingObserverApp extends StatelessWidget {
           indicatorColor: Colors.transparent,
           labelTextStyle: WidgetStateProperty.resolveWith(
             (states) => TextStyle(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: states.contains(WidgetState.selected)
                   ? FontWeight.w800
-                  : FontWeight.w700,
-              color: const Color(0xFF111827),
-              letterSpacing: 0,
+                  : FontWeight.w600,
+              color: states.contains(WidgetState.selected)
+                  ? const Color(0xFF111827)
+                  : const Color(0xFF8A8D94),
+              letterSpacing: -0.2,
+              height: 1.2,
             ),
           ),
         ),
@@ -222,7 +225,8 @@ class AppChrome extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: 0,
+                            letterSpacing: -0.2,
+                            fontSize: 17,
                           ),
                     ),
                   ],
@@ -246,21 +250,24 @@ class AppChrome extends StatelessWidget {
           Row(
             children: [
               StatusPill(
-                  label: snapshot.regime, color: regimeColor(snapshot.regime)),
+                  label: regimeLabel(snapshot.regime),
+                  color: regimeColor(snapshot.regime)),
               const SizedBox(width: 8),
-              StatusPill(label: snapshot.mode, color: modeColor(snapshot.mode)),
+              StatusPill(
+                  label: modeLabel(snapshot.mode),
+                  color: modeColor(snapshot.mode)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${snapshot.source} · ${snapshot.lastUpdated}',
+                  '${sourceLabel(snapshot.source)} · ${snapshot.lastUpdated}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.end,
                   style: const TextStyle(
                     color: Color(0xFF7A7F89),
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: 0,
+                    letterSpacing: -0.1,
                   ),
                 ),
               ),
@@ -284,38 +291,39 @@ class WatchGroupTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const tabs = ['SUMMARY', 'position', 'orders', 'market', 'logs'];
+    const tabs = ['요약', '포지션', '주문', '시장', '로그'];
     return SizedBox(
-      height: 56,
+      height: 60,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: tabs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 26),
+        separatorBuilder: (_, __) => const SizedBox(width: 22),
         itemBuilder: (context, index) {
           final selected = index == selectedIndex;
           return Center(
             child: InkWell(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(20),
               onTap: () => onSelected(index),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: EdgeInsets.symmetric(
-                  horizontal: selected ? 24 : 0,
+                  horizontal: selected ? 22 : 4,
                   vertical: selected ? 12 : 0,
                 ),
                 decoration: BoxDecoration(
                   color:
-                      selected ? const Color(0xFFF0F0F0) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(18),
+                      selected ? const Color(0xFFEDEEF1) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   tabs[index],
                   style: TextStyle(
-                    color: selected ? Colors.black : const Color(0xFF777A80),
-                    fontSize: 20,
+                    color: selected ? Colors.black : const Color(0xFF8A8D94),
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 0,
+                    letterSpacing: -0.2,
+                    height: 1.1,
                   ),
                 ),
               ),
@@ -393,10 +401,10 @@ class WatchListScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(top: 4, bottom: 24),
       itemCount: items.length,
-      separatorBuilder: (_, __) =>
-          const Divider(height: 1, indent: 38, color: Color(0xFFE5E5E5)),
+      separatorBuilder: (_, __) => const Divider(
+          height: 1, indent: 76, endIndent: 18, color: Color(0xFFEDEEF1)),
       itemBuilder: (context, index) => WatchRow(item: items[index]),
     );
   }
@@ -412,24 +420,28 @@ class WatchRow extends StatelessWidget {
     final negative = item.change.trimLeft().startsWith('-');
     final changeColor = negative ? const Color(0xFFC8404A) : item.accent;
     final rightColumnWidth =
-        (MediaQuery.sizeOf(context).width * 0.24).clamp(132.0, 260.0);
+        (MediaQuery.sizeOf(context).width * 0.32).clamp(150.0, 280.0);
+    final changeText = item.changePct.isEmpty
+        ? item.change
+        : '${item.change} · ${item.changePct}';
 
     return SizedBox(
-      height: 96,
+      height: 104,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 26,
-              backgroundColor: item.accent.withValues(alpha: 0.12),
+              radius: 27,
+              backgroundColor: item.accent.withValues(alpha: 0.14),
               child: Text(
                 item.marker.toUpperCase(),
                 style: TextStyle(
                   color: item.accent,
-                  fontSize: 20,
+                  fontSize: 21,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 0,
+                  letterSpacing: -0.2,
+                  height: 1.0,
                 ),
               ),
             ),
@@ -444,22 +456,24 @@ class WatchRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 21,
+                      fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF202433),
-                      letterSpacing: 0,
+                      color: Color(0xFF15171E),
+                      letterSpacing: -0.3,
+                      height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 6),
                   Text(
                     item.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF909399),
-                      letterSpacing: 0,
+                      color: Color(0xFF80848C),
+                      letterSpacing: -0.2,
+                      height: 1.25,
                     ),
                   ),
                 ],
@@ -478,38 +492,43 @@ class WatchRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.end,
                     style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF202433),
-                      letterSpacing: 0,
+                      fontSize: 23,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF15171E),
+                      letterSpacing: -0.3,
+                      height: 1.15,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '${item.change}  ${item.changePct}',
+                    changeText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.end,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: changeColor,
-                      letterSpacing: 0,
+                      letterSpacing: -0.2,
+                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item.meta,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF7A7F89),
-                      letterSpacing: 0,
+                  if (item.meta.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      item.meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF8A8D94),
+                        letterSpacing: -0.1,
+                        height: 1.2,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -529,12 +548,12 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(17),
       ),
       child: Text(
         label,
@@ -542,9 +561,10 @@ class StatusPill extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: color,
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: FontWeight.w800,
-          letterSpacing: 0,
+          letterSpacing: -0.1,
+          height: 1.1,
         ),
       ),
     );
@@ -691,19 +711,19 @@ class EngineSnapshot {
         EventView(
             time: '23:43',
             kind: 'ALERT',
-            message: 'TradingView webhook accepted by Cloudflare Worker'),
+            message: '트레이딩뷰 웹훅이 Cloudflare Worker에 수신됨'),
         EventView(
             time: '23:43',
             kind: 'DECISION',
-            message: 'RANGE signal keeps engine in observe mode'),
+            message: 'RANGE 신호로 엔진이 관망 모드 유지'),
         EventView(
             time: '23:42',
             kind: 'SECRET',
-            message: 'TV_WEBHOOK_PASSPHRASE synced with TradingView input'),
+            message: 'TV_WEBHOOK_PASSPHRASE 동기화 완료'),
         EventView(
             time: '23:35',
             kind: 'WORKER',
-            message: 'tradingview-webhook deployed on workers.dev'),
+            message: 'tradingview-webhook이 workers.dev에 배포됨'),
       ],
       watchItems: const [],
     );
@@ -842,46 +862,46 @@ class WatchItem {
 List<WatchItem> summaryItems(EngineSnapshot snapshot) {
   return [
     WatchItem(
-      symbol: 'REGIME',
+      symbol: '레짐',
       title: snapshot.marketBias,
-      value: snapshot.regime,
-      change: 'Score ${snapshot.regimeScore.toStringAsFixed(1)}',
-      changePct: snapshot.mode,
+      value: regimeLabel(snapshot.regime),
+      change: '점수 ${snapshot.regimeScore.toStringAsFixed(1)}',
+      changePct: modeLabel(snapshot.mode),
       accent: regimeColor(snapshot.regime),
       marker: 'R',
-      meta: 'Current decision',
+      meta: '현재 판단',
     ),
     WatchItem(
-      symbol: 'EQUITY',
-      title: 'Virtual / Binance account equity',
+      symbol: '자산',
+      title: '가상 / 바이낸스 계좌 자산',
       value: compactUsdt(snapshot.equity),
-      change: 'Current ${compactUsdt(snapshot.currentExposure)}',
-      changePct: 'Target ${compactUsdt(snapshot.targetExposure)}',
+      change: '현재 ${compactUsdt(snapshot.currentExposure)}',
+      changePct: '목표 ${compactUsdt(snapshot.targetExposure)}',
       accent: const Color(0xFF2563EB),
       marker: 'E',
-      meta: snapshot.source,
+      meta: sourceLabel(snapshot.source),
     ),
     WatchItem(
-      symbol: 'LEVERAGE',
-      title: 'Total exposure usage',
+      symbol: '레버리지',
+      title: '총 익스포저 사용량',
       value: '${snapshot.leverage.toStringAsFixed(2)}x',
-      change: snapshot.leverage <= 2 ? '+within' : '-over',
-      changePct: 'Max 2.00x',
+      change: snapshot.leverage <= 2 ? '범위 내' : '초과',
+      changePct: '최대 2.00x',
       accent: snapshot.leverage <= 2
           ? const Color(0xFF2F8F75)
           : const Color(0xFFC8404A),
       marker: 'L',
-      meta: 'Cross 2x cap',
+      meta: '크로스 2x 한도',
     ),
     WatchItem(
-      symbol: 'RISK',
-      title: snapshot.riskState,
+      symbol: '리스크',
+      title: riskLabel(snapshot.riskState),
       value: pct(snapshot.dailyPnlPct),
-      change: 'W ${pct(snapshot.weeklyPnlPct)}',
-      changePct: 'M ${pct(snapshot.monthlyPnlPct)}',
+      change: '주 ${pct(snapshot.weeklyPnlPct)}',
+      changePct: '월 ${pct(snapshot.monthlyPnlPct)}',
       accent: riskColor(snapshot.riskState),
       marker: '!',
-      meta: snapshot.cooldownUntil ?? 'No cooldown',
+      meta: snapshot.cooldownUntil ?? '쿨다운 없음',
     ),
   ];
 }
@@ -890,14 +910,14 @@ List<WatchItem> positionItems(EngineSnapshot snapshot) {
   if (snapshot.positions.isEmpty) {
     return [
       WatchItem(
-        symbol: 'FLAT',
-        title: 'No open futures position',
+        symbol: '플랫',
+        title: '오픈된 선물 포지션 없음',
         value: compactUsdt(snapshot.currentExposure),
-        change: 'neutral',
+        change: '중립',
         changePct: '0.00%',
         accent: const Color(0xFF787B86),
         marker: 'F',
-        meta: 'Current positions only',
+        meta: '현재 포지션만 표시',
       ),
     ];
   }
@@ -906,15 +926,15 @@ List<WatchItem> positionItems(EngineSnapshot snapshot) {
       .map(
         (position) => WatchItem(
           symbol: position.symbol,
-          title: position.side,
+          title: sideLabel(position.side),
           value: compactUsdt(position.notional),
-          change: position.side,
+          change: sideLabel(position.side),
           changePct: snapshot.equity <= 0 || position.notional == 0
               ? '0.00%'
               : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
           accent: sideColor(position.side),
           marker: firstMarker(position.symbol),
-          meta: 'Current Binance position',
+          meta: '바이낸스 현재 포지션',
         ),
       )
       .toList(growable: false);
@@ -924,14 +944,14 @@ List<WatchItem> orderItems(EngineSnapshot snapshot) {
   if (snapshot.orders.isEmpty) {
     return [
       WatchItem(
-        symbol: 'NO ORDER',
-        title: 'No planned rebalance order',
+        symbol: '주문 없음',
+        title: '예정된 리밸런싱 주문 없음',
         value: compactUsdt(snapshot.targetExposure),
-        change: 'idle',
-        changePct: snapshot.mode,
+        change: '대기',
+        changePct: modeLabel(snapshot.mode),
         accent: const Color(0xFF787B86),
         marker: 'O',
-        meta: 'Orders only',
+        meta: '주문 목록',
       ),
     ];
   }
@@ -942,17 +962,17 @@ List<WatchItem> orderItems(EngineSnapshot snapshot) {
           symbol: order.symbol,
           title: [
             order.action,
-            if (order.positionSide.isNotEmpty) order.positionSide,
-            if (order.reduceOnly) 'reduce-only',
+            if (order.positionSide.isNotEmpty) sideLabel(order.positionSide),
+            if (order.reduceOnly) '청산 전용',
           ].join(' · '),
           value: compactUsdt(order.notional),
-          change: order.orderType.isEmpty ? 'planned' : order.orderType,
-          changePct: order.reduceOnly ? 'reduce' : 'entry',
+          change: order.orderType.isEmpty ? '예정' : order.orderType,
+          changePct: order.reduceOnly ? '청산' : '진입',
           accent: order.reduceOnly
               ? const Color(0xFFC08A17)
               : const Color(0xFF2563EB),
           marker: firstMarker(order.symbol),
-          meta: order.reason.isEmpty ? 'Planned order' : order.reason,
+          meta: order.reason.isEmpty ? '예정된 주문' : order.reason,
         ),
       )
       .toList(growable: false);
@@ -973,11 +993,11 @@ List<WatchItem> marketItems(EngineSnapshot snapshot) {
   if (pinned.isEmpty && topCoins.isEmpty) {
     return [
       WatchItem(
-        symbol: 'MARKET',
-        title: 'Waiting for market internals',
+        symbol: '시장',
+        title: '시장 내부 데이터 대기 중',
         value: snapshot.marketBias,
-        change: snapshot.regime,
-        changePct: snapshot.mode,
+        change: regimeLabel(snapshot.regime),
+        changePct: modeLabel(snapshot.mode),
         accent: regimeColor(snapshot.regime),
         marker: 'M',
         meta: snapshot.lastUpdated,
@@ -991,54 +1011,54 @@ List<WatchItem> marketItems(EngineSnapshot snapshot) {
 List<WatchItem> projectProgressItems(EngineSnapshot snapshot) {
   return [
     WatchItem(
-      symbol: 'WEBHOOK',
-      title: 'TradingView -> Cloudflare Worker',
+      symbol: '웹훅',
+      title: 'TradingView → Cloudflare Worker',
       value: '수신됨',
-      change: '202 Accepted',
-      changePct: 'live',
+      change: '202 수락',
+      changePct: '운영중',
       accent: const Color(0xFF2F8F75),
       marker: 'W',
-      meta: 'URL active',
+      meta: 'URL 활성',
     ),
     WatchItem(
-      symbol: 'SIGNAL',
-      title: '최근 alert 기준 판단',
+      symbol: '신호',
+      title: '최근 알림 기준 판단',
       value: decisionLabel(snapshot),
-      change: snapshot.regime,
-      changePct: snapshot.mode,
+      change: regimeLabel(snapshot.regime),
+      changePct: modeLabel(snapshot.mode),
       accent: regimeColor(snapshot.regime),
       marker: 'S',
       meta: snapshot.marketBias,
     ),
     WatchItem(
-      symbol: 'APP',
-      title: 'Flutter observer cleanup',
+      symbol: '앱',
+      title: 'Flutter 관전 앱 정리',
       value: '진행중',
-      change: 'read only',
-      changePct: 'console',
+      change: '읽기 전용',
+      changePct: '콘솔',
       accent: const Color(0xFF2563EB),
       marker: 'A',
-      meta: 'No trade controls',
+      meta: '거래 컨트롤 없음',
     ),
     WatchItem(
-      symbol: 'ENGINE',
-      title: 'Private execution engine hookup',
+      symbol: '엔진',
+      title: '비공개 실행 엔진 연결',
       value: '대기',
-      change: 'Queue/Tunnel',
-      changePct: 'next',
+      change: '큐/터널',
+      changePct: '다음 단계',
       accent: const Color(0xFFC08A17),
       marker: 'E',
-      meta: 'Binance keys stay server-side',
+      meta: '바이낸스 키는 서버에만 보관',
     ),
     WatchItem(
-      symbol: 'LIVE',
+      symbol: '실거래',
       title: '자동 실거래 전 단계',
       value: '미시작',
-      change: 'paper first',
-      changePct: 'safe',
+      change: '페이퍼 우선',
+      changePct: '안전',
       accent: const Color(0xFF787B86),
       marker: 'L',
-      meta: '30 days target',
+      meta: '30일 목표',
     ),
   ];
 }
@@ -1047,46 +1067,46 @@ List<WatchItem> decisionConsoleItems(EngineSnapshot snapshot) {
   final alert = latestEvent(snapshot, 'ALERT');
   return [
     WatchItem(
-      symbol: 'CONSOLE',
-      title: alert?.message ?? 'Waiting for TradingView alert',
+      symbol: '콘솔',
+      title: alert?.message ?? '트레이딩뷰 알림 대기 중',
       value: decisionLabel(snapshot),
-      change: snapshot.regime,
+      change: regimeLabel(snapshot.regime),
       changePct: snapshot.marketBias,
       accent: regimeColor(snapshot.regime),
       marker: '>',
       meta: alert?.time ?? snapshot.lastUpdated,
     ),
     WatchItem(
-      symbol: 'REGIME',
-      title: 'Webhook payload decision field',
-      value: snapshot.regime,
+      symbol: '레짐',
+      title: '웹훅 페이로드 판단 필드',
+      value: regimeLabel(snapshot.regime),
       change: decisionDetail(snapshot),
-      changePct: snapshot.mode,
+      changePct: modeLabel(snapshot.mode),
       accent: regimeColor(snapshot.regime),
       marker: 'R',
-      meta: 'No manual override',
+      meta: '수동 오버라이드 없음',
     ),
     WatchItem(
-      symbol: 'TARGET',
-      title: 'Target exposure from engine snapshot',
+      symbol: '목표',
+      title: '엔진 스냅샷 기준 목표 익스포저',
       value: compactUsdt(snapshot.targetExposure),
-      change: 'Lev ${snapshot.leverage.toStringAsFixed(2)}x',
-      changePct: 'Max 2x',
+      change: '레버 ${snapshot.leverage.toStringAsFixed(2)}x',
+      changePct: '최대 2x',
       accent: snapshot.leverage <= 2
           ? const Color(0xFF2F8F75)
           : const Color(0xFFC8404A),
       marker: 'T',
-      meta: 'Current ${compactUsdt(snapshot.currentExposure)}',
+      meta: '현재 ${compactUsdt(snapshot.currentExposure)}',
     ),
     WatchItem(
-      symbol: 'ACTION',
+      symbol: '동작',
       title: '앱은 판단 표시만 수행',
       value: '관전',
-      change: 'no buttons',
-      changePct: 'read only',
+      change: '버튼 없음',
+      changePct: '읽기 전용',
       accent: const Color(0xFF2563EB),
       marker: 'A',
-      meta: snapshot.source,
+      meta: sourceLabel(snapshot.source),
     ),
   ];
 }
@@ -1096,15 +1116,15 @@ List<WatchItem> portfolioItems(EngineSnapshot snapshot) {
       .map(
         (position) => WatchItem(
           symbol: position.symbol,
-          title: position.side,
+          title: sideLabel(position.side),
           value: compactUsdt(position.notional),
-          change: position.side,
+          change: sideLabel(position.side),
           changePct: snapshot.equity <= 0 || position.notional == 0
               ? '0.00%'
               : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
           accent: sideColor(position.side),
           marker: firstMarker(position.symbol),
-          meta: 'Current Binance position',
+          meta: '바이낸스 현재 포지션',
         ),
       )
       .toList(growable: true);
@@ -1112,14 +1132,14 @@ List<WatchItem> portfolioItems(EngineSnapshot snapshot) {
   if (items.isEmpty) {
     items.add(
       WatchItem(
-        symbol: 'FLAT',
-        title: 'No open Binance futures position',
+        symbol: '플랫',
+        title: '오픈된 바이낸스 선물 포지션 없음',
         value: compactUsdt(snapshot.currentExposure),
-        change: 'neutral',
+        change: '중립',
         changePct: '0.00%',
         accent: const Color(0xFF787B86),
         marker: 'F',
-        meta: 'Read-only observer',
+        meta: '읽기 전용 관전',
       ),
     );
   }
@@ -1128,15 +1148,15 @@ List<WatchItem> portfolioItems(EngineSnapshot snapshot) {
     items.add(
       WatchItem(
         symbol: order.symbol,
-        title: '${order.action}${order.reduceOnly ? ' · reduce-only' : ''}',
+        title: '${order.action}${order.reduceOnly ? ' · 청산 전용' : ''}',
         value: compactUsdt(order.notional),
         change: order.action,
-        changePct: order.reduceOnly ? 'reduce' : 'entry',
+        changePct: order.reduceOnly ? '청산' : '진입',
         accent: order.reduceOnly
             ? const Color(0xFFC08A17)
             : const Color(0xFF2563EB),
         marker: firstMarker(order.symbol),
-        meta: 'Planned order',
+        meta: '예정된 주문',
       ),
     );
   }
@@ -1148,53 +1168,53 @@ List<WatchItem> pipelineItems(EngineSnapshot snapshot) {
   return [
     WatchItem(
       symbol: '1 TV',
-      title: 'Alert JSON emits schema/passphrase/time_ms',
+      title: '알림 JSON에 schema/passphrase/time_ms 포함',
       value: '완료',
-      change: 'accepted',
-      changePct: '400 fixed',
+      change: '수락됨',
+      changePct: '400 수정',
       accent: const Color(0xFF2F8F75),
       marker: '1',
       meta: latestEvent(snapshot, 'ALERT')?.time ?? snapshot.lastUpdated,
     ),
     WatchItem(
-      symbol: '2 WORKER',
-      title: 'Validation, stale check, dedupe',
+      symbol: '2 워커',
+      title: '검증·지연 확인·중복 제거',
       value: '운영중',
       change: 'workers.dev',
-      changePct: 'KV on',
+      changePct: 'KV 사용',
       accent: const Color(0xFF2F8F75),
       marker: '2',
       meta: 'tradingview-webhook',
     ),
     WatchItem(
-      symbol: '3 ENGINE',
-      title: 'Queue/Tunnel consumer and state store',
+      symbol: '3 엔진',
+      title: '큐/터널 컨슈머와 상태 저장소',
       value: '남음',
-      change: 'connect',
-      changePct: 'next',
+      change: '연결 필요',
+      changePct: '다음 단계',
       accent: const Color(0xFFC08A17),
       marker: '3',
-      meta: 'Private API /status',
+      meta: '비공개 API /status',
     ),
     WatchItem(
-      symbol: '4 APP',
-      title: 'Read-only status polling',
+      symbol: '4 앱',
+      title: '읽기 전용 상태 폴링',
       value: '정리중',
-      change: 'tabs kept',
-      changePct: 'console only',
+      change: '탭 유지',
+      changePct: '콘솔 전용',
       accent: const Color(0xFF2563EB),
       marker: '4',
-      meta: snapshot.source,
+      meta: sourceLabel(snapshot.source),
     ),
     WatchItem(
-      symbol: '5 BINANCE',
-      title: 'Paper mode before live execution',
+      symbol: '5 바이낸스',
+      title: '실거래 전 페이퍼 모드',
       value: '잠금',
-      change: 'no live',
-      changePct: 'pending',
+      change: '실거래 없음',
+      changePct: '대기',
       accent: const Color(0xFF787B86),
       marker: '5',
-      meta: 'No app-side keys',
+      meta: '앱에 키 없음',
     ),
   ];
 }
@@ -1202,62 +1222,62 @@ List<WatchItem> pipelineItems(EngineSnapshot snapshot) {
 List<WatchItem> guardItems(EngineSnapshot snapshot) {
   return [
     WatchItem(
-      symbol: 'DAILY',
-      title: 'Daily loss guard',
+      symbol: '일간',
+      title: '일간 손실 가드',
       value: pct(snapshot.dailyPnlPct),
-      change: snapshot.dailyPnlPct <= -2 ? '-blocked' : '+OK',
-      changePct: 'Limit -2.00%',
+      change: snapshot.dailyPnlPct <= -2 ? '차단' : '정상',
+      changePct: '한도 -2.00%',
       accent: snapshot.dailyPnlPct <= -2
           ? const Color(0xFFC8404A)
           : const Color(0xFF2F8F75),
       marker: 'D',
-      meta: 'Block new entries',
+      meta: '신규 진입 차단',
     ),
     WatchItem(
-      symbol: 'WEEKLY',
-      title: 'Weekly reduction guard',
+      symbol: '주간',
+      title: '주간 축소 가드',
       value: pct(snapshot.weeklyPnlPct),
-      change: snapshot.weeklyPnlPct <= -5 ? '-reduce' : '+OK',
-      changePct: 'Limit -5.00%',
+      change: snapshot.weeklyPnlPct <= -5 ? '축소' : '정상',
+      changePct: '한도 -5.00%',
       accent: snapshot.weeklyPnlPct <= -5
           ? const Color(0xFFC8404A)
           : const Color(0xFF2F8F75),
       marker: 'W',
-      meta: 'Reduce 50%',
+      meta: '50% 축소',
     ),
     WatchItem(
-      symbol: 'MONTHLY',
-      title: 'Monthly stop guard',
+      symbol: '월간',
+      title: '월간 정지 가드',
       value: pct(snapshot.monthlyPnlPct),
-      change: snapshot.monthlyPnlPct <= -10 ? '-pause' : '+OK',
-      changePct: 'Limit -10.00%',
+      change: snapshot.monthlyPnlPct <= -10 ? '정지' : '정상',
+      changePct: '한도 -10.00%',
       accent: snapshot.monthlyPnlPct <= -10
           ? const Color(0xFFC8404A)
           : const Color(0xFF2F8F75),
       marker: 'M',
-      meta: 'Close all and pause',
+      meta: '전량 청산 후 정지',
     ),
     WatchItem(
-      symbol: 'LEVERAGE',
-      title: 'Total exposure cap',
+      symbol: '레버리지',
+      title: '총 익스포저 한도',
       value: '${snapshot.leverage.toStringAsFixed(2)}x',
-      change: snapshot.leverage <= 2 ? '+within' : '-over',
-      changePct: 'Max 2.00x',
+      change: snapshot.leverage <= 2 ? '범위 내' : '초과',
+      changePct: '최대 2.00x',
       accent: snapshot.leverage <= 2
           ? const Color(0xFF2F8F75)
           : const Color(0xFFC8404A),
       marker: 'L',
-      meta: 'Equity based',
+      meta: '자산 기준',
     ),
     WatchItem(
-      symbol: 'COOLDOWN',
-      title: snapshot.cooldownUntil ?? 'No active cooldown',
-      value: snapshot.riskState,
-      change: 'auto',
-      changePct: 'read only',
+      symbol: '쿨다운',
+      title: snapshot.cooldownUntil ?? '활성 쿨다운 없음',
+      value: riskLabel(snapshot.riskState),
+      change: '자동',
+      changePct: '읽기 전용',
       accent: riskColor(snapshot.riskState),
       marker: 'C',
-      meta: 'No app-side order control',
+      meta: '앱 측 주문 제어 없음',
     ),
   ];
 }
@@ -1266,14 +1286,14 @@ List<WatchItem> consoleItems(EngineSnapshot snapshot) {
   final items = snapshot.events
       .map(
         (event) => WatchItem(
-          symbol: event.kind,
+          symbol: eventKindLabel(event.kind),
           title: event.message,
           value: event.time,
-          change: event.kind.toLowerCase(),
-          changePct: snapshot.source,
+          change: eventKindLabel(event.kind),
+          changePct: sourceLabel(snapshot.source),
           accent: eventColor(event.kind),
           marker: eventMarker(event.kind),
-          meta: 'Project log',
+          meta: '프로젝트 로그',
         ),
       )
       .toList(growable: true);
@@ -1281,11 +1301,11 @@ List<WatchItem> consoleItems(EngineSnapshot snapshot) {
   if (items.isEmpty) {
     items.add(
       WatchItem(
-        symbol: 'WAITING',
-        title: 'No engine log has been received yet',
+        symbol: '대기',
+        title: '엔진 로그 수신 대기 중',
         value: '-',
-        change: 'polling',
-        changePct: snapshot.source,
+        change: '폴링',
+        changePct: sourceLabel(snapshot.source),
         accent: const Color(0xFF787B86),
         marker: '?',
         meta: snapshot.lastUpdated,
@@ -1300,46 +1320,46 @@ List<WatchItem> defaultWatchItems(EngineSnapshot snapshot) {
   return [
     WatchItem(
       symbol: 'BTCUSDT',
-      title: 'Bitcoin perpetual',
-      value: snapshot.mode,
-      change: snapshot.regime,
+      title: '비트코인 무기한',
+      value: modeLabel(snapshot.mode),
+      change: regimeLabel(snapshot.regime),
       changePct: snapshot.marketBias,
       accent: const Color(0xFFF7931A),
       marker: 'B',
-      meta: 'Signal source',
+      meta: '신호 소스',
     ),
     WatchItem(
-      symbol: 'EQUITY',
-      title: 'USDT-M account equity',
+      symbol: '자산',
+      title: 'USDT-M 계좌 자산',
       value: compactUsdt(snapshot.equity),
-      change: 'Lev ${snapshot.leverage.toStringAsFixed(2)}x',
-      changePct: 'Target ${compactUsdt(snapshot.targetExposure)}',
+      change: '레버리지 ${snapshot.leverage.toStringAsFixed(2)}x',
+      changePct: '목표 ${compactUsdt(snapshot.targetExposure)}',
       accent: const Color(0xFF2563EB),
       marker: 'E',
-      meta: snapshot.source,
+      meta: sourceLabel(snapshot.source),
     ),
     WatchItem(
-      symbol: 'RISK',
-      title: snapshot.riskState,
+      symbol: '리스크',
+      title: riskLabel(snapshot.riskState),
       value: pct(snapshot.dailyPnlPct),
-      change: 'W ${pct(snapshot.weeklyPnlPct)}',
-      changePct: 'M ${pct(snapshot.monthlyPnlPct)}',
+      change: '주 ${pct(snapshot.weeklyPnlPct)}',
+      changePct: '월 ${pct(snapshot.monthlyPnlPct)}',
       accent: riskColor(snapshot.riskState),
       marker: 'R',
-      meta: snapshot.cooldownUntil ?? 'No cooldown',
+      meta: snapshot.cooldownUntil ?? '쿨다운 없음',
     ),
     ...snapshot.positions.map(
       (position) => WatchItem(
         symbol: position.symbol,
-        title: position.side,
+        title: sideLabel(position.side),
         value: compactUsdt(position.notional),
-        change: position.side,
+        change: sideLabel(position.side),
         changePct: snapshot.equity <= 0 || position.notional == 0
             ? '0.00%'
             : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
         accent: sideColor(position.side),
         marker: firstMarker(position.symbol),
-        meta: 'Current position',
+        meta: '현재 포지션',
       ),
     ),
   ];
@@ -1351,11 +1371,11 @@ WatchItem riskItem(
     symbol: symbol,
     title: title,
     value: pct(pnl),
-    change: pnl >= 0 ? '+OK' : pct(pnl),
-    changePct: 'Limit $limit',
+    change: pnl >= 0 ? '정상' : pct(pnl),
+    changePct: '한도 $limit',
     accent: pnl < 0 ? const Color(0xFFC8404A) : const Color(0xFF2F8F75),
     marker: marker,
-    meta: 'Auto guard',
+    meta: '자동 가드',
   );
 }
 
@@ -1366,6 +1386,59 @@ EventView? latestEvent(EngineSnapshot snapshot, String kind) {
     }
   }
   return null;
+}
+
+String regimeLabel(String regime) {
+  return switch (regime) {
+    'BULL' => '강세',
+    'BEAR' => '약세',
+    'RANGE' => '횡보',
+    'CHAOTIC' => '혼조',
+    'TOP10_LONG' => '상위10 롱',
+    'BTC_ETH_LONG' => 'BTC/ETH 롱',
+    'ALT_WEAK_SHORT' => '알트 약세 숏',
+    'SHORT_MODE' => '숏 모드',
+    _ => regime,
+  };
+}
+
+String modeLabel(String mode) {
+  return switch (mode) {
+    'LONG' => '롱',
+    'SHORT' => '숏',
+    'OBSERVE' => '관망',
+    'PAUSED' => '정지',
+    'NEUTRAL' => '중립',
+    _ => mode,
+  };
+}
+
+String riskLabel(String risk) {
+  return switch (risk) {
+    'OK' => '정상',
+    'NONE' => '없음',
+    'BLOCK_NEW_ENTRIES' => '신규 진입 차단',
+    'REDUCE_HALF' => '50% 축소',
+    'CLOSE_ALL_AND_PAUSE' => '전량 청산 후 정지',
+    _ => risk,
+  };
+}
+
+String sideLabel(String side) {
+  return switch (side) {
+    'LONG' => '롱',
+    'SHORT' => '숏',
+    'FLAT' => '플랫',
+    _ => side,
+  };
+}
+
+String sourceLabel(String source) {
+  return switch (source) {
+    'Local project snapshot' => '로컬 스냅샷',
+    'Engine API' => '엔진 API',
+    _ => source,
+  };
 }
 
 String decisionLabel(EngineSnapshot snapshot) {
@@ -1387,6 +1460,17 @@ String decisionDetail(EngineSnapshot snapshot) {
     'SHORT_MODE' => 'short guarded',
     'CHAOTIC' => 'pause entries',
     _ => 'no entry',
+  };
+}
+
+String eventKindLabel(String kind) {
+  return switch (kind) {
+    'ALERT' => '알림',
+    'DECISION' => '판단',
+    'SECRET' => '시크릿',
+    'WORKER' => '워커',
+    'ERROR' => '오류',
+    _ => kind,
   };
 }
 

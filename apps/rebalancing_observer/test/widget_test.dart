@@ -17,19 +17,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Mino Engine'), findsOneWidget);
-    expect(find.text('SUMMARY'), findsOneWidget);
-    expect(find.text('position'), findsOneWidget);
-    expect(find.text('orders'), findsOneWidget);
-    expect(find.text('market'), findsOneWidget);
-    expect(find.text('logs'), findsOneWidget);
-    expect(find.text('요약'), findsOneWidget);
-    expect(find.text('포지션'), findsOneWidget);
-    expect(find.text('주문'), findsOneWidget);
-    expect(find.text('시장'), findsOneWidget);
-    expect(find.text('로그'), findsOneWidget);
-    expect(find.text('REGIME'), findsOneWidget);
-    expect(find.text('EQUITY'), findsOneWidget);
-    expect(find.text('RANGE'), findsWidgets);
+    expect(find.text('요약'), findsWidgets);
+    expect(find.text('포지션'), findsWidgets);
+    expect(find.text('주문'), findsWidgets);
+    expect(find.text('시장'), findsWidgets);
+    expect(find.text('로그'), findsWidgets);
+    expect(find.text('레짐'), findsOneWidget);
+    expect(find.text('자산'), findsOneWidget);
+    expect(find.text('횡보'), findsWidgets);
+    expect(find.text('관망'), findsWidgets);
     expect(find.byIcon(Icons.add), findsNothing);
     expect(find.textContaining('Approve'), findsNothing);
     expect(find.textContaining('매수'), findsNothing);
