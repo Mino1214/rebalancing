@@ -1,4 +1,4 @@
-from .binance import BinanceCredentials, BinanceFuturesClient
+from .binance import BinanceCredentials, BinanceFuturesClient, BinanceOrderResult, SymbolRules, live_trading_enabled
 from .engine import RebalancingEngine
 from .models import (
     AccountSnapshot,
@@ -28,6 +28,7 @@ __all__ = [
     "AccountSnapshot",
     "BinanceCredentials",
     "BinanceFuturesClient",
+    "BinanceOrderResult",
     "BtcMarketSnapshot",
     "Candle",
     "CryptoMarketSnapshot",
@@ -45,6 +46,7 @@ __all__ = [
     "RebalancingEngine",
     "Regime",
     "RiskAction",
+    "SymbolRules",
     "TargetPosition",
     "TradeMode",
     "TrendDirection",
@@ -52,4 +54,5 @@ __all__ = [
     "TradingViewAlertError",
     "TradingViewAlertGate",
     "TradingViewRegime",
+    "live_trading_enabled",
 ]

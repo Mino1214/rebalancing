@@ -47,13 +47,20 @@ It routes to this PC:
 http://localhost:8788
 ```
 
-Current expected state before the engine API exists:
+Run the local status API:
 
-```text
-502 from engine.medicalnewshub.info
+```bash
+PYTHONPATH=src python -m rebalancing.status_server
 ```
 
-When the read-only engine API is running on `localhost:8788`, the tunnel will serve it through `engine.medicalnewshub.info`.
+Then verify:
+
+```bash
+curl http://127.0.0.1:8788/health
+curl https://engine.medicalnewshub.info/status
+```
+
+`/status` returns account equity, exposure, regime, positions, planned orders, risk state, events, and app watchlist rows. Without Binance environment keys it still returns a fallback account plus live public Binance futures universe data.
 
 ## Observer App
 
@@ -63,19 +70,11 @@ The Flutter observer app lives here:
 apps/rebalancing_observer
 ```
 
-Run a local web build:
+Run the Flutter app with the tunnel API:
 
 ```bash
 cd apps/rebalancing_observer
-flutter build web --dart-define=API_BASE_URL=https://engine.medicalnewshub.info
-python -m http.server 8789 --directory build/web --bind 127.0.0.1
-```
-
-Open:
-
-```text
-http://127.0.0.1:8789
+flutter run --dart-define=API_BASE_URL=https://engine.medicalnewshub.info
 ```
 
 The app is read-only. It has no order approval, manual trade, or leverage-change controls.
-

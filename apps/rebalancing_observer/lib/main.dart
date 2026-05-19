@@ -249,7 +249,7 @@ class AppChrome extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Score ${snapshot.regimeScore.toStringAsFixed(1)} · ${snapshot.lastUpdated}',
+                  '${snapshot.source} · ${snapshot.lastUpdated}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.end,
@@ -319,15 +319,12 @@ class WatchlistView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = snapshot.watchItems;
     return RefreshIndicator(
       onRefresh: () async {},
-      child: ListView.separated(
-        padding: const EdgeInsets.only(bottom: 16),
-        itemCount: items.length,
-        separatorBuilder: (_, __) =>
-            const Divider(height: 1, indent: 38, color: Color(0xFFE5E5E5)),
-        itemBuilder: (context, index) => WatchRow(item: items[index]),
+      child: WatchListScaffold(
+        items: snapshot.watchItems.isNotEmpty
+            ? snapshot.watchItems
+            : defaultWatchItems(snapshot),
       ),
     );
   }
@@ -340,48 +337,7 @@ class RegimeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = [
-      WatchItem(
-        symbol: 'REGIME',
-        title: snapshot.regime,
-        value: snapshot.regimeScore.toStringAsFixed(1),
-        change: snapshot.marketBias,
-        changePct: snapshot.mode,
-        accent: regimeColor(snapshot.regime),
-        marker: 'R',
-      ),
-      WatchItem(
-        symbol: 'EQUITY',
-        title: 'Total account equity',
-        value: compactUsdt(snapshot.equity),
-        change: 'Exposure ${compactUsdt(snapshot.currentExposure)}',
-        changePct: 'Target ${compactUsdt(snapshot.targetExposure)}',
-        accent: const Color(0xFF1D4ED8),
-        marker: 'E',
-      ),
-      WatchItem(
-        symbol: 'LEVERAGE',
-        title: 'Current usage',
-        value: '${snapshot.leverage.toStringAsFixed(2)}x',
-        change: snapshot.leverage <= 2 ? 'Within max' : 'Over max',
-        changePct: 'Max 2.00x',
-        accent: snapshot.leverage <= 2
-            ? const Color(0xFF2F8F75)
-            : const Color(0xFFC8404A),
-        marker: 'L',
-      ),
-      WatchItem(
-        symbol: 'RISK',
-        title: snapshot.riskState,
-        value: pct(snapshot.dailyPnlPct),
-        change: 'Week ${pct(snapshot.weeklyPnlPct)}',
-        changePct: 'Month ${pct(snapshot.monthlyPnlPct)}',
-        accent: riskColor(snapshot.riskState),
-        marker: '!',
-      ),
-    ];
-
-    return WatchListScaffold(items: rows);
+    return WatchListScaffold(items: decisionConsoleItems(snapshot));
   }
 }
 
@@ -392,23 +348,7 @@ class PortfolioView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = snapshot.positions
-        .map(
-          (position) => WatchItem(
-            symbol: position.symbol,
-            title: position.side,
-            value: compactUsdt(position.notional),
-            change: position.side,
-            changePct: position.notional == 0
-                ? '0.00%'
-                : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
-            accent: sideColor(position.side),
-            marker: position.symbol.characters.first,
-          ),
-        )
-        .toList(growable: false);
-
-    return WatchListScaffold(items: items);
+    return WatchListScaffold(items: portfolioItems(snapshot));
   }
 }
 
@@ -419,25 +359,7 @@ class RiskView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      riskItem(
-          'DAILY', 'Daily loss guard', snapshot.dailyPnlPct, '-2.00%', 'D'),
-      riskItem('WEEKLY', 'Weekly reduction guard', snapshot.weeklyPnlPct,
-          '-5.00%', 'W'),
-      riskItem('MONTHLY', 'Monthly stop guard', snapshot.monthlyPnlPct,
-          '-10.00%', 'M'),
-      WatchItem(
-        symbol: 'COOLDOWN',
-        title: snapshot.cooldownUntil ?? 'No active cooldown',
-        value: snapshot.riskState,
-        change: 'Auto controlled',
-        changePct: 'Read only',
-        accent: riskColor(snapshot.riskState),
-        marker: 'C',
-      ),
-    ];
-
-    return WatchListScaffold(items: items);
+    return WatchListScaffold(items: guardItems(snapshot));
   }
 }
 
@@ -448,23 +370,7 @@ class LogView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = snapshot.events
-        .map(
-          (event) => WatchItem(
-            symbol: event.kind,
-            title: event.message,
-            value: event.time,
-            change: event.kind,
-            changePct: snapshot.source,
-            accent: event.kind == 'ERROR'
-                ? const Color(0xFFC8404A)
-                : const Color(0xFF2F8F75),
-            marker: event.kind.characters.first,
-          ),
-        )
-        .toList(growable: false);
-
-    return WatchListScaffold(items: items);
+    return WatchListScaffold(items: consoleItems(snapshot));
   }
 }
 
@@ -492,9 +398,10 @@ class WatchRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final positive = !item.change.trimLeft().startsWith('-');
-    final changeColor =
-        positive ? const Color(0xFF2F8F75) : const Color(0xFFC8404A);
+    final negative = item.change.trimLeft().startsWith('-');
+    final changeColor = negative ? const Color(0xFFC8404A) : item.accent;
+    final rightColumnWidth =
+        (MediaQuery.sizeOf(context).width * 0.24).clamp(132.0, 260.0);
 
     return SizedBox(
       height: 96,
@@ -549,7 +456,7 @@ class WatchRow extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             SizedBox(
-              width: 132,
+              width: rightColumnWidth,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -662,7 +569,7 @@ class EngineApiClient {
       return EngineSnapshot.fromJson(
           jsonDecode(response.body) as Map<String, dynamic>);
     } catch (_) {
-      return EngineSnapshot.sample(source: 'Sample fallback');
+      return EngineSnapshot.sample(source: 'Local project snapshot');
     }
   }
 }
@@ -750,44 +657,42 @@ class EngineSnapshot {
     return snapshot.copyWith(watchItems: defaultWatchItems(snapshot));
   }
 
-  static EngineSnapshot sample({String source = 'Sample'}) {
+  static EngineSnapshot sample({String source = 'Local project snapshot'}) {
     final snapshot = EngineSnapshot(
       source: source,
-      lastUpdated: '2026-05-19 23:30 KST',
+      lastUpdated: '2026-05-19 23:43 KST',
       regime: 'RANGE',
-      marketBias: 'RANGE',
-      mode: 'NEUTRAL',
+      marketBias: 'WEBHOOK_ACCEPTED',
+      mode: 'OBSERVE',
       riskState: 'OK',
-      regimeScore: 12.5,
-      equity: 1500,
+      regimeScore: 0,
+      equity: 0,
       currentExposure: 0,
       targetExposure: 0,
       leverage: 0,
-      dailyPnlPct: 0.1,
-      weeklyPnlPct: -0.6,
-      monthlyPnlPct: 1.8,
+      dailyPnlPct: 0,
+      weeklyPnlPct: 0,
+      monthlyPnlPct: 0,
       cooldownUntil: null,
-      positions: const [
-        PositionView(symbol: 'BTCUSDT', side: 'FLAT', notional: 0),
-        PositionView(symbol: 'ETHUSDT', side: 'FLAT', notional: 0),
-        PositionView(symbol: 'SOLUSDT', side: 'FLAT', notional: 0),
-      ],
-      orders: const [
-        OrderView(
-            symbol: 'NONE',
-            action: 'NO_ACTION',
-            notional: 0,
-            reduceOnly: false),
-      ],
+      positions: const [],
+      orders: const [],
       events: const [
         EventView(
-            time: '23:28',
+            time: '23:43',
             kind: 'ALERT',
-            message: 'tf=1 receive test accepted'),
+            message: 'TradingView webhook accepted by Cloudflare Worker'),
         EventView(
-            time: '23:24',
-            kind: 'TUNNEL',
-            message: 'engine.medicalnewshub.info online'),
+            time: '23:43',
+            kind: 'DECISION',
+            message: 'RANGE signal keeps engine in observe mode'),
+        EventView(
+            time: '23:42',
+            kind: 'SECRET',
+            message: 'TV_WEBHOOK_PASSPHRASE synced with TradingView input'),
+        EventView(
+            time: '23:35',
+            kind: 'WORKER',
+            message: 'tradingview-webhook deployed on workers.dev'),
       ],
       watchItems: const [],
     );
@@ -906,11 +811,318 @@ class WatchItem {
       change: (json['change'] ?? '').toString(),
       changePct: (json['change_pct'] ?? json['changePct'] ?? '').toString(),
       accent: parseColor(json['color']) ?? const Color(0xFF2F8F75),
-      marker:
-          (json['marker'] ?? json['symbol'] ?? '?').toString().characters.first,
+      marker: firstMarker((json['marker'] ?? json['symbol'] ?? '?').toString()),
       meta: (json['meta'] ?? '').toString(),
     );
   }
+}
+
+List<WatchItem> projectProgressItems(EngineSnapshot snapshot) {
+  return [
+    WatchItem(
+      symbol: 'WEBHOOK',
+      title: 'TradingView -> Cloudflare Worker',
+      value: '수신됨',
+      change: '202 Accepted',
+      changePct: 'live',
+      accent: const Color(0xFF2F8F75),
+      marker: 'W',
+      meta: 'URL active',
+    ),
+    WatchItem(
+      symbol: 'SIGNAL',
+      title: '최근 alert 기준 판단',
+      value: decisionLabel(snapshot),
+      change: snapshot.regime,
+      changePct: snapshot.mode,
+      accent: regimeColor(snapshot.regime),
+      marker: 'S',
+      meta: snapshot.marketBias,
+    ),
+    WatchItem(
+      symbol: 'APP',
+      title: 'Flutter observer cleanup',
+      value: '진행중',
+      change: 'read only',
+      changePct: 'console',
+      accent: const Color(0xFF2563EB),
+      marker: 'A',
+      meta: 'No trade controls',
+    ),
+    WatchItem(
+      symbol: 'ENGINE',
+      title: 'Private execution engine hookup',
+      value: '대기',
+      change: 'Queue/Tunnel',
+      changePct: 'next',
+      accent: const Color(0xFFC08A17),
+      marker: 'E',
+      meta: 'Binance keys stay server-side',
+    ),
+    WatchItem(
+      symbol: 'LIVE',
+      title: '자동 실거래 전 단계',
+      value: '미시작',
+      change: 'paper first',
+      changePct: 'safe',
+      accent: const Color(0xFF787B86),
+      marker: 'L',
+      meta: '30 days target',
+    ),
+  ];
+}
+
+List<WatchItem> decisionConsoleItems(EngineSnapshot snapshot) {
+  final alert = latestEvent(snapshot, 'ALERT');
+  return [
+    WatchItem(
+      symbol: 'CONSOLE',
+      title: alert?.message ?? 'Waiting for TradingView alert',
+      value: decisionLabel(snapshot),
+      change: snapshot.regime,
+      changePct: snapshot.marketBias,
+      accent: regimeColor(snapshot.regime),
+      marker: '>',
+      meta: alert?.time ?? snapshot.lastUpdated,
+    ),
+    WatchItem(
+      symbol: 'REGIME',
+      title: 'Webhook payload decision field',
+      value: snapshot.regime,
+      change: decisionDetail(snapshot),
+      changePct: snapshot.mode,
+      accent: regimeColor(snapshot.regime),
+      marker: 'R',
+      meta: 'No manual override',
+    ),
+    WatchItem(
+      symbol: 'TARGET',
+      title: 'Target exposure from engine snapshot',
+      value: compactUsdt(snapshot.targetExposure),
+      change: 'Lev ${snapshot.leverage.toStringAsFixed(2)}x',
+      changePct: 'Max 2x',
+      accent: snapshot.leverage <= 2
+          ? const Color(0xFF2F8F75)
+          : const Color(0xFFC8404A),
+      marker: 'T',
+      meta: 'Current ${compactUsdt(snapshot.currentExposure)}',
+    ),
+    WatchItem(
+      symbol: 'ACTION',
+      title: '앱은 판단 표시만 수행',
+      value: '관전',
+      change: 'no buttons',
+      changePct: 'read only',
+      accent: const Color(0xFF2563EB),
+      marker: 'A',
+      meta: snapshot.source,
+    ),
+  ];
+}
+
+List<WatchItem> portfolioItems(EngineSnapshot snapshot) {
+  final items = snapshot.positions
+      .map(
+        (position) => WatchItem(
+          symbol: position.symbol,
+          title: position.side,
+          value: compactUsdt(position.notional),
+          change: position.side,
+          changePct: snapshot.equity <= 0 || position.notional == 0
+              ? '0.00%'
+              : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
+          accent: sideColor(position.side),
+          marker: firstMarker(position.symbol),
+          meta: 'Current Binance position',
+        ),
+      )
+      .toList(growable: true);
+
+  if (items.isEmpty) {
+    items.add(
+      WatchItem(
+        symbol: 'FLAT',
+        title: 'No open Binance futures position',
+        value: compactUsdt(snapshot.currentExposure),
+        change: 'neutral',
+        changePct: '0.00%',
+        accent: const Color(0xFF787B86),
+        marker: 'F',
+        meta: 'Read-only observer',
+      ),
+    );
+  }
+
+  for (final order in snapshot.orders.take(6)) {
+    items.add(
+      WatchItem(
+        symbol: order.symbol,
+        title: '${order.action}${order.reduceOnly ? ' · reduce-only' : ''}',
+        value: compactUsdt(order.notional),
+        change: order.action,
+        changePct: order.reduceOnly ? 'reduce' : 'entry',
+        accent: order.reduceOnly
+            ? const Color(0xFFC08A17)
+            : const Color(0xFF2563EB),
+        marker: firstMarker(order.symbol),
+        meta: 'Planned order',
+      ),
+    );
+  }
+
+  return items;
+}
+
+List<WatchItem> pipelineItems(EngineSnapshot snapshot) {
+  return [
+    WatchItem(
+      symbol: '1 TV',
+      title: 'Alert JSON emits schema/passphrase/time_ms',
+      value: '완료',
+      change: 'accepted',
+      changePct: '400 fixed',
+      accent: const Color(0xFF2F8F75),
+      marker: '1',
+      meta: latestEvent(snapshot, 'ALERT')?.time ?? snapshot.lastUpdated,
+    ),
+    WatchItem(
+      symbol: '2 WORKER',
+      title: 'Validation, stale check, dedupe',
+      value: '운영중',
+      change: 'workers.dev',
+      changePct: 'KV on',
+      accent: const Color(0xFF2F8F75),
+      marker: '2',
+      meta: 'tradingview-webhook',
+    ),
+    WatchItem(
+      symbol: '3 ENGINE',
+      title: 'Queue/Tunnel consumer and state store',
+      value: '남음',
+      change: 'connect',
+      changePct: 'next',
+      accent: const Color(0xFFC08A17),
+      marker: '3',
+      meta: 'Private API /status',
+    ),
+    WatchItem(
+      symbol: '4 APP',
+      title: 'Read-only status polling',
+      value: '정리중',
+      change: 'tabs kept',
+      changePct: 'console only',
+      accent: const Color(0xFF2563EB),
+      marker: '4',
+      meta: snapshot.source,
+    ),
+    WatchItem(
+      symbol: '5 BINANCE',
+      title: 'Paper mode before live execution',
+      value: '잠금',
+      change: 'no live',
+      changePct: 'pending',
+      accent: const Color(0xFF787B86),
+      marker: '5',
+      meta: 'No app-side keys',
+    ),
+  ];
+}
+
+List<WatchItem> guardItems(EngineSnapshot snapshot) {
+  return [
+    WatchItem(
+      symbol: 'DAILY',
+      title: 'Daily loss guard',
+      value: pct(snapshot.dailyPnlPct),
+      change: snapshot.dailyPnlPct <= -2 ? '-blocked' : '+OK',
+      changePct: 'Limit -2.00%',
+      accent: snapshot.dailyPnlPct <= -2
+          ? const Color(0xFFC8404A)
+          : const Color(0xFF2F8F75),
+      marker: 'D',
+      meta: 'Block new entries',
+    ),
+    WatchItem(
+      symbol: 'WEEKLY',
+      title: 'Weekly reduction guard',
+      value: pct(snapshot.weeklyPnlPct),
+      change: snapshot.weeklyPnlPct <= -5 ? '-reduce' : '+OK',
+      changePct: 'Limit -5.00%',
+      accent: snapshot.weeklyPnlPct <= -5
+          ? const Color(0xFFC8404A)
+          : const Color(0xFF2F8F75),
+      marker: 'W',
+      meta: 'Reduce 50%',
+    ),
+    WatchItem(
+      symbol: 'MONTHLY',
+      title: 'Monthly stop guard',
+      value: pct(snapshot.monthlyPnlPct),
+      change: snapshot.monthlyPnlPct <= -10 ? '-pause' : '+OK',
+      changePct: 'Limit -10.00%',
+      accent: snapshot.monthlyPnlPct <= -10
+          ? const Color(0xFFC8404A)
+          : const Color(0xFF2F8F75),
+      marker: 'M',
+      meta: 'Close all and pause',
+    ),
+    WatchItem(
+      symbol: 'LEVERAGE',
+      title: 'Total exposure cap',
+      value: '${snapshot.leverage.toStringAsFixed(2)}x',
+      change: snapshot.leverage <= 2 ? '+within' : '-over',
+      changePct: 'Max 2.00x',
+      accent: snapshot.leverage <= 2
+          ? const Color(0xFF2F8F75)
+          : const Color(0xFFC8404A),
+      marker: 'L',
+      meta: 'Equity based',
+    ),
+    WatchItem(
+      symbol: 'COOLDOWN',
+      title: snapshot.cooldownUntil ?? 'No active cooldown',
+      value: snapshot.riskState,
+      change: 'auto',
+      changePct: 'read only',
+      accent: riskColor(snapshot.riskState),
+      marker: 'C',
+      meta: 'No app-side order control',
+    ),
+  ];
+}
+
+List<WatchItem> consoleItems(EngineSnapshot snapshot) {
+  final items = snapshot.events
+      .map(
+        (event) => WatchItem(
+          symbol: event.kind,
+          title: event.message,
+          value: event.time,
+          change: event.kind.toLowerCase(),
+          changePct: snapshot.source,
+          accent: eventColor(event.kind),
+          marker: eventMarker(event.kind),
+          meta: 'Project log',
+        ),
+      )
+      .toList(growable: true);
+
+  if (items.isEmpty) {
+    items.add(
+      WatchItem(
+        symbol: 'WAITING',
+        title: 'No engine log has been received yet',
+        value: '-',
+        change: 'polling',
+        changePct: snapshot.source,
+        accent: const Color(0xFF787B86),
+        marker: '?',
+        meta: snapshot.lastUpdated,
+      ),
+    );
+  }
+
+  return items;
 }
 
 List<WatchItem> defaultWatchItems(EngineSnapshot snapshot) {
@@ -922,18 +1134,8 @@ List<WatchItem> defaultWatchItems(EngineSnapshot snapshot) {
       change: snapshot.regime,
       changePct: snapshot.marketBias,
       accent: const Color(0xFFF7931A),
-      marker: '₿',
-      meta: 'Signal 4H',
-    ),
-    WatchItem(
-      symbol: 'TOTAL',
-      title: 'Crypto market cap',
-      value: snapshot.regimeScore.toStringAsFixed(1),
-      change: snapshot.regimeScore >= 0 ? '+Score' : '-Score',
-      changePct: snapshot.marketBias,
-      accent: const Color(0xFF2F8F75),
-      marker: 'T',
-      meta: snapshot.lastUpdated,
+      marker: 'B',
+      meta: 'Signal source',
     ),
     WatchItem(
       symbol: 'EQUITY',
@@ -952,7 +1154,7 @@ List<WatchItem> defaultWatchItems(EngineSnapshot snapshot) {
       change: 'W ${pct(snapshot.weeklyPnlPct)}',
       changePct: 'M ${pct(snapshot.monthlyPnlPct)}',
       accent: riskColor(snapshot.riskState),
-      marker: '!',
+      marker: 'R',
       meta: snapshot.cooldownUntil ?? 'No cooldown',
     ),
     ...snapshot.positions.map(
@@ -961,11 +1163,11 @@ List<WatchItem> defaultWatchItems(EngineSnapshot snapshot) {
         title: position.side,
         value: compactUsdt(position.notional),
         change: position.side,
-        changePct: position.notional == 0
+        changePct: snapshot.equity <= 0 || position.notional == 0
             ? '0.00%'
             : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
         accent: sideColor(position.side),
-        marker: position.symbol.characters.first,
+        marker: firstMarker(position.symbol),
         meta: 'Current position',
       ),
     ),
@@ -984,6 +1186,55 @@ WatchItem riskItem(
     marker: marker,
     meta: 'Auto guard',
   );
+}
+
+EventView? latestEvent(EngineSnapshot snapshot, String kind) {
+  for (final event in snapshot.events) {
+    if (event.kind == kind) {
+      return event;
+    }
+  }
+  return null;
+}
+
+String decisionLabel(EngineSnapshot snapshot) {
+  return switch (snapshot.regime) {
+    'TOP10_LONG' => '상위10 롱',
+    'BTC_ETH_LONG' => 'BTC/ETH 롱',
+    'ALT_WEAK_SHORT' => '알트 약세 숏',
+    'SHORT_MODE' => '숏 모드',
+    'CHAOTIC' => '정지',
+    _ => '관망',
+  };
+}
+
+String decisionDetail(EngineSnapshot snapshot) {
+  return switch (snapshot.regime) {
+    'TOP10_LONG' => 'long basket',
+    'BTC_ETH_LONG' => 'major only',
+    'ALT_WEAK_SHORT' => 'short weak alts',
+    'SHORT_MODE' => 'short guarded',
+    'CHAOTIC' => 'pause entries',
+    _ => 'no entry',
+  };
+}
+
+Color eventColor(String kind) {
+  return switch (kind) {
+    'ERROR' => const Color(0xFFC8404A),
+    'SECRET' || 'ALERT' || 'WORKER' => const Color(0xFF2F8F75),
+    'DECISION' => const Color(0xFF2563EB),
+    _ => const Color(0xFF787B86),
+  };
+}
+
+String eventMarker(String kind) {
+  return firstMarker(kind);
+}
+
+String firstMarker(String value) {
+  if (value.isEmpty) return '?';
+  return value.characters.first;
 }
 
 List<T> listOf<T>(Object? raw, T Function(Map<String, dynamic>) parser) {
@@ -1028,6 +1279,7 @@ Color modeColor(String mode) {
   return switch (mode) {
     'LONG' => const Color(0xFF2F8F75),
     'SHORT' => const Color(0xFFC8404A),
+    'OBSERVE' => const Color(0xFF2563EB),
     'PAUSED' => const Color(0xFF8F3FA8),
     _ => const Color(0xFF787B86),
   };

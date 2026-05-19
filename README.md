@@ -74,18 +74,46 @@ API 키는 파일에 직접 넣지 않습니다. 환경변수로만 주입하세
 ```bash
 export BINANCE_API_KEY="..."
 export BINANCE_API_SECRET="..."
+export ENGINE_PORT=8788
 ```
 
 또는 `.env.example`을 참고해 로컬 `.env`를 만들 수 있습니다. `.env`는 `.gitignore`에 포함되어 있습니다.
 
-Binance 어댑터는 USDT-M 선물의 계좌, 포지션, BTC 캔들, 선물 후보군을 가져옵니다. TradingView의 `TOTAL`, `TOTAL2`, `TOTAL3`, `BTC.D`는 Binance USDT-M 원천 데이터가 아니므로 `CryptoMarketSnapshot`에 별도 인덱스 데이터로 넣어야 합니다.
+Binance 어댑터는 USDT-M 선물의 계좌, 포지션, BTC 캔들, 선물 후보군, 호가 스프레드, 주문 실행 파라미터를 가져옵니다. TradingView의 `TOTAL`, `TOTAL2`, `TOTAL3`, `BTC.D`는 Binance USDT-M 원천 데이터가 아니므로 `CryptoMarketSnapshot`에 별도 인덱스 데이터로 넣어야 합니다.
 
-상위 도미넌스 10개 선정을 위해서는 `MarketCandidate.dominance_rank` 또는 `dominance_pct`를 보강해서 넣는 것을 권장합니다. Binance 선물 API는 시가총액 도미넌스를 직접 제공하지 않기 때문에, CoinGecko/CMC/TradingView 같은 외부 데이터가 필요합니다. `USDT`, `USDC`, `DAI` 등 스테이블코인은 유니버스에서 제외됩니다.
+상위 도미넌스 10개 선정은 현재 Binance USDT-M 24시간 quote volume 기반 점유율로 동작합니다. Binance 선물 API는 시가총액 도미넌스를 직접 제공하지 않기 때문에, 시총 기준 도미넌스를 엄밀히 보려면 CoinGecko/CMC/TradingView 같은 외부 데이터로 `MarketCandidate.dominance_rank` 또는 `dominance_pct`를 보강하면 됩니다. `USDT`, `USDC`, `DAI` 등 스테이블코인은 유니버스에서 제외됩니다.
+
+## 로컬 상태 API
+
+Cloudflare Tunnel의 `engine.medicalnewshub.info`는 이 PC의 `127.0.0.1:8788`을 바라봅니다. 앱은 기본적으로 `/status`를 읽습니다.
+
+```bash
+PYTHONPATH=src python -m rebalancing.status_server
+curl http://127.0.0.1:8788/status
+curl https://engine.medicalnewshub.info/status
+```
+
+응답에는 앱이 바로 읽는 `watchlist`, `positions`, `orders`, `events`, `equity`, `regime`, `mode`, `risk_state`가 포함됩니다.
+
+## 주문 실행
+
+주문 실행은 기본적으로 드라이런입니다. 실주문은 코드와 환경변수 양쪽에서 이중 잠금이 걸려 있습니다.
+
+```bash
+PYTHONPATH=src python -m rebalancing.execution
+
+export BINANCE_LIVE_TRADING=true
+export BINANCE_ENABLE_ORDERS=true
+PYTHONPATH=src python -m rebalancing.execution --live
+```
+
+실주문 전에는 Binance API 키를 새로 발급하고, 먼저 드라이런 응답의 `execution_results.response.params`를 확인하세요.
 
 ## 테스트
 
 ```bash
 PYTHONPATH=src python -m unittest discover -s tests
+PYTHONPATH=src python -m rebalancing.backtest --iterations 500
 ```
 
 ## 사용 예시

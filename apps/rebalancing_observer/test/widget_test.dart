@@ -26,7 +26,8 @@ void main() {
     expect(find.text('포지션'), findsOneWidget);
     expect(find.text('리스크'), findsOneWidget);
     expect(find.text('로그'), findsOneWidget);
-    expect(find.text('BTCUSDT'), findsWidgets);
+    expect(find.text('BTCUSDT'), findsOneWidget);
+    expect(find.text('EQUITY'), findsOneWidget);
     expect(find.text('RANGE'), findsWidgets);
     expect(find.byIcon(Icons.add), findsNothing);
     expect(find.textContaining('Approve'), findsNothing);

@@ -58,12 +58,19 @@ export default {
     try {
       payload = await request.json();
     } catch {
+      console.warn("TradingView webhook rejected", { error: "invalid_json" });
       return jsonResponse({ ok: false, error: "invalid_json" }, 400);
     }
 
     const normalized = normalizeAlert(payload);
     const errors = validateAlert(normalized, env);
     if (errors.length > 0) {
+      console.warn("TradingView webhook rejected", {
+        error: "invalid_alert",
+        details: errors,
+        regime: normalized.regime,
+        signal_id: normalized.signal_id,
+      });
       return jsonResponse({ ok: false, error: "invalid_alert", details: errors }, 400);
     }
 
@@ -174,4 +181,3 @@ function jsonResponse(body: unknown, status: number): Response {
     },
   });
 }
-
