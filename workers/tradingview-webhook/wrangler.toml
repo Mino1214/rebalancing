@@ -1,0 +1,23 @@
+name = "tradingview-webhook"
+main = "src/index.ts"
+compatibility_date = "2026-05-19"
+workers_dev = true
+
+# Create the KV namespace first, then fill these IDs:
+# wrangler kv namespace create TV_ALERT_DEDUPE
+#
+# [[kv_namespaces]]
+# binding = "TV_ALERT_DEDUPE"
+# id = "replace_me"
+
+# Optional but recommended when you want Cloudflare to buffer alerts before
+# your private execution engine consumes them.
+#
+# [[queues.producers]]
+# queue = "tv-alerts"
+# binding = "TV_ALERT_QUEUE"
+
+[vars]
+MAX_ALERT_AGE_SECONDS = "300"
+MAX_LEVERAGE = "2"
+

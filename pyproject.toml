@@ -1,0 +1,11 @@
+[project]
+name = "rebalancing"
+version = "0.1.0"
+description = "USDT-M futures regime-based allocation and rebalancing engine"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
