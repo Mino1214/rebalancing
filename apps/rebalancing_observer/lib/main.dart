@@ -53,7 +53,7 @@ class RebalancingObserverApp extends StatelessWidget {
               color: states.contains(WidgetState.selected)
                   ? const Color(0xFF111827)
                   : const Color(0xFF8A8D94),
-              letterSpacing: -0.2,
+              letterSpacing: 0,
               height: 1.2,
             ),
           ),
@@ -225,7 +225,7 @@ class AppChrome extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
+                            letterSpacing: 0,
                             fontSize: 17,
                           ),
                     ),
@@ -267,7 +267,7 @@ class AppChrome extends StatelessWidget {
                     color: Color(0xFF7A7F89),
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: -0.1,
+                    letterSpacing: 0,
                   ),
                 ),
               ),
@@ -322,7 +322,7 @@ class WatchGroupTabs extends StatelessWidget {
                     color: selected ? Colors.black : const Color(0xFF8A8D94),
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
+                    letterSpacing: 0,
                     height: 1.1,
                   ),
                 ),
@@ -344,7 +344,13 @@ class SummaryView extends StatelessWidget {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: () async {},
-      child: WatchListScaffold(items: summaryItems(snapshot)),
+      child: WatchListScaffold(
+        title: '운영 요약',
+        subtitle: '${sourceLabel(snapshot.source)} · ${snapshot.lastUpdated}',
+        metric: compactUsdt(snapshot.equity),
+        accent: regimeColor(snapshot.regime),
+        items: summaryItems(snapshot),
+      ),
     );
   }
 }
@@ -356,7 +362,15 @@ class PositionsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WatchListScaffold(items: positionItems(snapshot));
+    return WatchListScaffold(
+      title: '현 포지션',
+      subtitle: '현재 노출 ${compactUsdt(snapshot.currentExposure)}',
+      metric: '${snapshot.positions.length}개',
+      accent: snapshot.positions.isEmpty
+          ? const Color(0xFF787B86)
+          : const Color(0xFF2563EB),
+      items: positionItems(snapshot),
+    );
   }
 }
 
@@ -367,7 +381,15 @@ class OrdersView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WatchListScaffold(items: orderItems(snapshot));
+    return WatchListScaffold(
+      title: '주문 대기열',
+      subtitle: '목표 노출 ${compactUsdt(snapshot.targetExposure)}',
+      metric: '${snapshot.orders.length}개',
+      accent: snapshot.orders.isEmpty
+          ? const Color(0xFF787B86)
+          : const Color(0xFFC08A17),
+      items: orderItems(snapshot),
+    );
   }
 }
 
@@ -378,7 +400,13 @@ class MarketView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WatchListScaffold(items: marketItems(snapshot));
+    return WatchListScaffold(
+      title: '시장 콘솔',
+      subtitle: 'Stable.D · Top10.D · Breadth',
+      metric: snapshot.marketBias,
+      accent: regimeColor(snapshot.regime),
+      items: marketItems(snapshot),
+    );
   }
 }
 
@@ -389,23 +417,150 @@ class LogView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WatchListScaffold(items: consoleItems(snapshot));
+    return WatchListScaffold(
+      title: '이벤트 로그',
+      subtitle: snapshot.lastUpdated,
+      metric: '${snapshot.events.length}개',
+      accent: const Color(0xFF2563EB),
+      items: consoleItems(snapshot),
+    );
   }
 }
 
 class WatchListScaffold extends StatelessWidget {
-  const WatchListScaffold({super.key, required this.items});
+  const WatchListScaffold({
+    super.key,
+    required this.items,
+    required this.title,
+    required this.subtitle,
+    required this.metric,
+    required this.accent,
+  });
 
   final List<WatchItem> items;
+  final String title;
+  final String subtitle;
+  final String metric;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.only(top: 4, bottom: 24),
-      itemCount: items.length,
-      separatorBuilder: (_, __) => const Divider(
-          height: 1, indent: 76, endIndent: 18, color: Color(0xFFEDEEF1)),
-      itemBuilder: (context, index) => WatchRow(item: items[index]),
+      padding: const EdgeInsets.only(top: 6, bottom: 24),
+      itemCount: items.length + 1,
+      separatorBuilder: (context, index) {
+        if (index == 0) {
+          return const SizedBox(height: 6);
+        }
+        return const Divider(
+          height: 1,
+          indent: 68,
+          endIndent: 18,
+          color: Color(0xFFEDEEF1),
+        );
+      },
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return ConsoleHeader(
+            title: title,
+            subtitle: subtitle,
+            metric: metric,
+            accent: accent,
+          );
+        }
+        return WatchRow(item: items[index - 1]);
+      },
+    );
+  }
+}
+
+class ConsoleHeader extends StatelessWidget {
+  const ConsoleHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.metric,
+    required this.accent,
+  });
+
+  final String title;
+  final String subtitle;
+  final String metric;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 78),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6F7F9),
+          border: Border.all(color: const Color(0xFFE8EAEE)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 44,
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF15171E),
+                      letterSpacing: 0,
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF7A7F89),
+                      letterSpacing: 0,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              metric,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: accent,
+                letterSpacing: 0,
+                height: 1.1,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -420,32 +575,32 @@ class WatchRow extends StatelessWidget {
     final negative = item.change.trimLeft().startsWith('-');
     final changeColor = negative ? const Color(0xFFC8404A) : item.accent;
     final rightColumnWidth =
-        (MediaQuery.sizeOf(context).width * 0.32).clamp(150.0, 280.0);
+        (MediaQuery.sizeOf(context).width * 0.30).clamp(132.0, 260.0);
     final changeText = item.changePct.isEmpty
         ? item.change
         : '${item.change} · ${item.changePct}';
 
     return SizedBox(
-      height: 104,
+      height: 88,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 27,
+              radius: 23,
               backgroundColor: item.accent.withValues(alpha: 0.14),
               child: Text(
                 item.marker.toUpperCase(),
                 style: TextStyle(
                   color: item.accent,
-                  fontSize: 21,
+                  fontSize: 18,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: -0.2,
+                  letterSpacing: 0,
                   height: 1.0,
                 ),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -456,23 +611,23 @@ class WatchRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 22,
+                      fontSize: 19,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF15171E),
-                      letterSpacing: -0.3,
+                      letterSpacing: 0,
                       height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   Text(
                     item.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF80848C),
-                      letterSpacing: -0.2,
+                      letterSpacing: 0,
                       height: 1.25,
                     ),
                   ),
@@ -492,39 +647,39 @@ class WatchRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.end,
                     style: const TextStyle(
-                      fontSize: 23,
+                      fontSize: 20,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF15171E),
-                      letterSpacing: -0.3,
+                      letterSpacing: 0,
                       height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   Text(
                     changeText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.end,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: changeColor,
-                      letterSpacing: -0.2,
+                      letterSpacing: 0,
                       height: 1.2,
                     ),
                   ),
                   if (item.meta.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       item.meta,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF8A8D94),
-                        letterSpacing: -0.1,
+                        letterSpacing: 0,
                         height: 1.2,
                       ),
                     ),
@@ -563,7 +718,7 @@ class StatusPill extends StatelessWidget {
           color: color,
           fontSize: 14,
           fontWeight: FontWeight.w800,
-          letterSpacing: -0.1,
+          letterSpacing: 0,
           height: 1.1,
         ),
       ),
@@ -713,9 +868,7 @@ class EngineSnapshot {
             kind: 'ALERT',
             message: '트레이딩뷰 웹훅이 Cloudflare Worker에 수신됨'),
         EventView(
-            time: '23:43',
-            kind: 'DECISION',
-            message: 'RANGE 신호로 엔진이 관망 모드 유지'),
+            time: '23:43', kind: 'DECISION', message: 'RANGE 신호로 엔진이 관망 모드 유지'),
         EventView(
             time: '23:42',
             kind: 'SECRET',
