@@ -6,9 +6,9 @@ workers_dev = true
 # Create the KV namespace first, then fill these IDs:
 # wrangler kv namespace create TV_ALERT_DEDUPE
 #
-# [[kv_namespaces]]
-# binding = "TV_ALERT_DEDUPE"
-# id = "replace_me"
+[[kv_namespaces]]
+binding = "TV_ALERT_DEDUPE"
+id = "432e0f1994c14627a331a170e9490242"
 
 # Optional but recommended when you want Cloudflare to buffer alerts before
 # your private execution engine consumes them.
@@ -20,4 +20,3 @@ workers_dev = true
 [vars]
 MAX_ALERT_AGE_SECONDS = "300"
 MAX_LEVERAGE = "2"
-
