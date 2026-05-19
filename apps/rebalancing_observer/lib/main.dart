@@ -423,6 +423,11 @@ class LogView extends StatelessWidget {
       metric: '${snapshot.events.length}개',
       accent: const Color(0xFF2563EB),
       items: consoleItems(snapshot),
+      onItemTap: (item) {
+        if (item.symbol == eventKindLabel('ALERT')) {
+          showEngineResultSheet(context, snapshot);
+        }
+      },
     );
   }
 }
@@ -435,6 +440,7 @@ class WatchListScaffold extends StatelessWidget {
     required this.subtitle,
     required this.metric,
     required this.accent,
+    this.onItemTap,
   });
 
   final List<WatchItem> items;
@@ -442,6 +448,7 @@ class WatchListScaffold extends StatelessWidget {
   final String subtitle;
   final String metric;
   final Color accent;
+  final ValueChanged<WatchItem>? onItemTap;
 
   @override
   Widget build(BuildContext context) {
@@ -468,7 +475,11 @@ class WatchListScaffold extends StatelessWidget {
             accent: accent,
           );
         }
-        return WatchRow(item: items[index - 1]);
+        final item = items[index - 1];
+        return WatchRow(
+          item: item,
+          onTap: onItemTap == null ? null : () => onItemTap!(item),
+        );
       },
     );
   }
@@ -566,9 +577,10 @@ class ConsoleHeader extends StatelessWidget {
 }
 
 class WatchRow extends StatelessWidget {
-  const WatchRow({super.key, required this.item});
+  const WatchRow({super.key, required this.item, this.onTap});
 
   final WatchItem item;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -580,118 +592,394 @@ class WatchRow extends StatelessWidget {
         ? item.change
         : '${item.change} · ${item.changePct}';
 
-    return SizedBox(
-      height: 88,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 23,
-              backgroundColor: item.accent.withValues(alpha: 0.14),
-              child: Text(
-                item.marker.toUpperCase(),
-                style: TextStyle(
-                  color: item.accent,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0,
-                  height: 1.0,
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        height: 88,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 23,
+                backgroundColor: item.accent.withValues(alpha: 0.14),
+                child: Text(
+                  item.marker.toUpperCase(),
+                  style: TextStyle(
+                    color: item.accent,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                    height: 1.0,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.symbol,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF15171E),
-                      letterSpacing: 0,
-                      height: 1.15,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    item.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF80848C),
-                      letterSpacing: 0,
-                      height: 1.25,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            SizedBox(
-              width: rightColumnWidth,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    item.value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF15171E),
-                      letterSpacing: 0,
-                      height: 1.15,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    changeText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: changeColor,
-                      letterSpacing: 0,
-                      height: 1.2,
-                    ),
-                  ),
-                  if (item.meta.isNotEmpty) ...[
-                    const SizedBox(height: 3),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      item.meta,
+                      item.symbol,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF15171E),
+                        letterSpacing: 0,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF80848C),
+                        letterSpacing: 0,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: rightColumnWidth,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      item.value,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
                       style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF8A8D94),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF15171E),
+                        letterSpacing: 0,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      changeText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: changeColor,
                         letterSpacing: 0,
                         height: 1.2,
                       ),
                     ),
+                    if (item.meta.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        item.meta,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF8A8D94),
+                          letterSpacing: 0,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+void showEngineResultSheet(BuildContext context, EngineSnapshot snapshot) {
+  final signal = snapshot.tradingViewSignal;
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+    ),
+    builder: (context) {
+      return SafeArea(
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.72,
+          minChildSize: 0.42,
+          maxChildSize: 0.92,
+          builder: (context, scrollController) {
+            return ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+              children: [
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD4D7DD),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 23,
+                      backgroundColor:
+                          regimeColor(snapshot.regime).withValues(alpha: 0.12),
+                      child: Icon(Icons.analytics_outlined,
+                          color: regimeColor(snapshot.regime)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '엔진 결과',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF15171E),
+                              letterSpacing: 0,
+                              height: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            signal?.signalId ?? snapshot.lastUpdated,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF7A7F89),
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                DetailSection(
+                  title: 'TradingView',
+                  rows: [
+                    DetailRowData('레짐', signal?.regime ?? '-',
+                        regimeLabel(signal?.regime ?? '-')),
+                    DetailRowData(
+                        '타임프레임', signal?.timeframe ?? '-', 'confirmed'),
+                    DetailRowData(
+                        '목표 레버리지',
+                        '${(signal?.targetLeverage ?? 0).toStringAsFixed(2)}x',
+                        'TV'),
+                    DetailRowData(
+                        '신호 시간',
+                        signal?.barTimeMs?.toString() ??
+                            signal?.timeMs.toString() ??
+                            '-',
+                        'ms'),
+                  ],
+                ),
+                DetailSection(
+                  title: 'Engine',
+                  rows: [
+                    DetailRowData(
+                        '판정',
+                        '${regimeLabel(snapshot.regime)} / ${modeLabel(snapshot.mode)}',
+                        snapshot.marketBias),
+                    DetailRowData('점수', snapshot.regimeScore.toStringAsFixed(1),
+                        sourceLabel(snapshot.source)),
+                    DetailRowData(
+                        '노출',
+                        '${compactUsdt(snapshot.currentExposure)} → ${compactUsdt(snapshot.targetExposure)}',
+                        '${snapshot.leverage.toStringAsFixed(2)}x'),
+                    DetailRowData('주문', '${snapshot.orders.length}개',
+                        riskLabel(snapshot.riskState)),
+                  ],
+                ),
+                DetailSection(
+                  title: 'Market',
+                  rows: [
+                    DetailRowData(
+                        'Internals',
+                        snapshot.marketInternals.riskLabel,
+                        snapshot.marketInternals.source),
+                    DetailRowData(
+                        'Stable.D',
+                        fmtNullablePct(
+                            snapshot.marketInternals.stableDominancePct),
+                        'defensive'),
+                    DetailRowData(
+                        'Top10.D',
+                        fmtNullablePct(
+                            snapshot.marketInternals.top10DominanceTotalPct),
+                        'cap'),
+                    DetailRowData(
+                        'Breadth',
+                        fmtNullablePct(
+                            snapshot.marketInternals.volumeBreadthPct),
+                        snapshot.marketInternals.advanceDeclineLabel),
+                  ],
+                ),
+                DetailSection(
+                  title: 'Signal Flags',
+                  rows: [
+                    DetailRowData(
+                        'BTC',
+                        boolDirection(signal?.btcUp, signal?.btcDown),
+                        'direction'),
+                    DetailRowData(
+                        'TOTAL',
+                        boolDirection(signal?.totalUp, signal?.totalDown),
+                        'market'),
+                    DetailRowData(
+                        'TOTAL2',
+                        boolDirection(signal?.total2Up, signal?.total2Down),
+                        'alts'),
+                    DetailRowData(
+                        'TOTAL3',
+                        signal?.total3Weak == true ? 'WEAK' : 'OK',
+                        'pure alts'),
+                    DetailRowData(
+                        'BTC.D',
+                        boolDirection(signal?.btcdUp, signal?.btcdDown),
+                        'flow'),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    },
+  );
+}
+
+class DetailSection extends StatelessWidget {
+  const DetailSection({super.key, required this.title, required this.rows});
+
+  final String title;
+  final List<DetailRowData> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F7F9),
+        border: Border.all(color: const Color(0xFFE8EAEE)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF15171E),
+              letterSpacing: 0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...rows.map((row) => DetailLine(row: row)),
+        ],
+      ),
+    );
+  }
+}
+
+class DetailLine extends StatelessWidget {
+  const DetailLine({super.key, required this.row});
+
+  final DetailRowData row;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 94,
+            child: Text(
+              row.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF7A7F89),
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              row.value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF15171E),
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              row.meta,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF8A8D94),
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DetailRowData {
+  const DetailRowData(this.label, this.value, this.meta);
+
+  final String label;
+  final String value;
+  final String meta;
 }
 
 class StatusPill extends StatelessWidget {
@@ -777,6 +1065,8 @@ class EngineSnapshot {
     required this.weeklyPnlPct,
     required this.monthlyPnlPct,
     required this.cooldownUntil,
+    required this.tradingViewSignal,
+    required this.marketInternals,
     required this.positions,
     required this.orders,
     required this.events,
@@ -798,6 +1088,8 @@ class EngineSnapshot {
   final double weeklyPnlPct;
   final double monthlyPnlPct;
   final String? cooldownUntil;
+  final TradingViewSignal? tradingViewSignal;
+  final MarketInternalsView marketInternals;
   final List<PositionView> positions;
   final List<OrderView> orders;
   final List<EventView> events;
@@ -831,6 +1123,9 @@ class EngineSnapshot {
       monthlyPnlPct: toDouble(json['monthly_pnl_pct'] ?? json['monthlyPnlPct']),
       cooldownUntil:
           (json['cooldown_until'] ?? json['cooldownUntil'])?.toString(),
+      tradingViewSignal: TradingViewSignal.tryParse(json['tradingview_signal']),
+      marketInternals: MarketInternalsView.fromJson(
+          json['market_internals'] ?? json['marketInternals']),
       positions: positions,
       orders: orders,
       events: events,
@@ -860,6 +1155,33 @@ class EngineSnapshot {
       weeklyPnlPct: 0,
       monthlyPnlPct: 0,
       cooldownUntil: null,
+      tradingViewSignal: const TradingViewSignal(
+        regime: 'RANGE',
+        targetLeverage: 0,
+        btcUp: true,
+        btcDown: false,
+        totalUp: true,
+        totalDown: false,
+        total2Up: true,
+        total2Down: false,
+        total3Weak: false,
+        btcdUp: true,
+        btcdDown: false,
+        timeframe: '5',
+        confirmed: true,
+        timeMs: 1779215702553,
+        barTimeMs: 1779215700000,
+        signalId: 'RANGE_5_1779215700000',
+      ),
+      marketInternals: const MarketInternalsView(
+        source: 'coingecko+binance',
+        riskLabel: 'BROAD_RISK_OFF',
+        stableDominancePct: 11.0,
+        top10DominanceTotalPct: 79.7,
+        volumeBreadthPct: 34.6,
+        advanceCount: 128,
+        declineCount: 72,
+      ),
       positions: const [],
       orders: const [],
       events: const [
@@ -901,10 +1223,119 @@ class EngineSnapshot {
       weeklyPnlPct: weeklyPnlPct,
       monthlyPnlPct: monthlyPnlPct,
       cooldownUntil: cooldownUntil,
+      tradingViewSignal: tradingViewSignal,
+      marketInternals: marketInternals,
       positions: positions,
       orders: orders,
       events: events,
       watchItems: watchItems ?? this.watchItems,
+    );
+  }
+}
+
+class TradingViewSignal {
+  const TradingViewSignal({
+    required this.regime,
+    required this.targetLeverage,
+    required this.btcUp,
+    required this.btcDown,
+    required this.totalUp,
+    required this.totalDown,
+    required this.total2Up,
+    required this.total2Down,
+    required this.total3Weak,
+    required this.btcdUp,
+    required this.btcdDown,
+    required this.timeframe,
+    required this.confirmed,
+    required this.timeMs,
+    required this.barTimeMs,
+    required this.signalId,
+  });
+
+  final String regime;
+  final double targetLeverage;
+  final bool btcUp;
+  final bool btcDown;
+  final bool totalUp;
+  final bool totalDown;
+  final bool total2Up;
+  final bool total2Down;
+  final bool total3Weak;
+  final bool btcdUp;
+  final bool btcdDown;
+  final String timeframe;
+  final bool confirmed;
+  final int? timeMs;
+  final int? barTimeMs;
+  final String signalId;
+
+  static TradingViewSignal? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    return TradingViewSignal.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  factory TradingViewSignal.fromJson(Map<String, dynamic> json) {
+    return TradingViewSignal(
+      regime: (json['regime'] ?? '-').toString(),
+      targetLeverage:
+          toDouble(json['target_leverage'] ?? json['targetLeverage']),
+      btcUp: json['btc_up'] == true || json['btcUp'] == true,
+      btcDown: json['btc_down'] == true || json['btcDown'] == true,
+      totalUp: json['total_up'] == true || json['totalUp'] == true,
+      totalDown: json['total_down'] == true || json['totalDown'] == true,
+      total2Up: json['total2_up'] == true || json['total2Up'] == true,
+      total2Down: json['total2_down'] == true || json['total2Down'] == true,
+      total3Weak: json['total3_weak'] == true || json['total3Weak'] == true,
+      btcdUp: json['btcd_up'] == true || json['btcdUp'] == true,
+      btcdDown: json['btcd_down'] == true || json['btcdDown'] == true,
+      timeframe: (json['tf'] ?? json['timeframe'] ?? '-').toString(),
+      confirmed: json['confirmed'] != false,
+      timeMs: toNullableInt(json['time_ms'] ?? json['timeMs']),
+      barTimeMs: toNullableInt(json['bar_time_ms'] ?? json['barTimeMs']),
+      signalId: (json['signal_id'] ?? json['signalId'] ?? '-').toString(),
+    );
+  }
+}
+
+class MarketInternalsView {
+  const MarketInternalsView({
+    required this.source,
+    required this.riskLabel,
+    required this.stableDominancePct,
+    required this.top10DominanceTotalPct,
+    required this.volumeBreadthPct,
+    required this.advanceCount,
+    required this.declineCount,
+  });
+
+  final String source;
+  final String riskLabel;
+  final double? stableDominancePct;
+  final double? top10DominanceTotalPct;
+  final double? volumeBreadthPct;
+  final int advanceCount;
+  final int declineCount;
+
+  String get advanceDeclineLabel {
+    if (advanceCount == 0 && declineCount == 0) return '-';
+    return '$advanceCount/$declineCount';
+  }
+
+  factory MarketInternalsView.fromJson(Object? raw) {
+    final json =
+        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    return MarketInternalsView(
+      source: (json['source'] ?? '-').toString(),
+      riskLabel: (json['risk_label'] ?? json['riskLabel'] ?? '-').toString(),
+      stableDominancePct: toNullableDouble(
+          json['stable_dominance_pct'] ?? json['stableDominancePct']),
+      top10DominanceTotalPct: toNullableDouble(
+          json['top10_dominance_total_pct'] ?? json['top10DominanceTotalPct']),
+      volumeBreadthPct: toNullableDouble(
+          json['volume_breadth_pct'] ?? json['volumeBreadthPct']),
+      advanceCount: toInt(json['advance_count'] ?? json['advanceCount']),
+      declineCount: toInt(json['decline_count'] ?? json['declineCount']),
     );
   }
 }
@@ -1657,6 +2088,40 @@ double toDouble(Object? value) {
   if (value is num) return value.toDouble();
   if (value is String) return double.tryParse(value) ?? 0;
   return 0;
+}
+
+double? toNullableDouble(Object? value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
+}
+
+int toInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? 0;
+  return 0;
+}
+
+int? toNullableInt(Object? value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
+String fmtNullablePct(double? value) {
+  if (value == null) return '-';
+  return '${value.toStringAsFixed(2)}%';
+}
+
+String boolDirection(bool? up, bool? down) {
+  if (up == true && down == true) return 'CONFLICT';
+  if (up == true) return 'UP';
+  if (down == true) return 'DOWN';
+  return 'MIXED';
 }
 
 String compactUsdt(double value) {

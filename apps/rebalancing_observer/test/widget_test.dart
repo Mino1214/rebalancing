@@ -31,4 +31,30 @@ void main() {
     expect(find.textContaining('매수'), findsNothing);
     expect(find.textContaining('매도'), findsNothing);
   });
+
+  testWidgets('alert log opens engine result details', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      RebalancingObserverApp(initialSnapshot: EngineSnapshot.sample()),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('로그').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('트레이딩뷰 웹훅').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('엔진 결과'), findsOneWidget);
+    expect(find.text('TradingView'), findsOneWidget);
+    expect(find.text('Engine'), findsOneWidget);
+    expect(find.text('Market'), findsOneWidget);
+    expect(find.text('Signal Flags'), findsOneWidget);
+    expect(find.text('주문'), findsWidgets);
+    expect(find.textContaining('매수'), findsNothing);
+    expect(find.textContaining('매도'), findsNothing);
+  });
 }
