@@ -26,31 +26,34 @@ class RebalancingObserverApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF008C7A),
+      seedColor: const Color(0xFF111827),
       brightness: Brightness.light,
     );
 
     return MaterialApp(
-      title: 'Rebalancing Observer',
+      title: 'Mino Engine',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: colorScheme,
-        scaffoldBackgroundColor: const Color(0xFFF6F8FA),
+        scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
-        cardTheme: CardTheme(
-          color: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: const BorderSide(color: Color(0xFFE1E5EA)),
-          ),
-          margin: EdgeInsets.zero,
+        textTheme: Typography.blackCupertino.apply(
+          bodyColor: const Color(0xFF202433),
+          displayColor: const Color(0xFF202433),
         ),
-        appBarTheme: const AppBarTheme(
+        navigationBarTheme: NavigationBarThemeData(
           backgroundColor: Colors.white,
-          foregroundColor: Color(0xFF17202A),
-          elevation: 0,
-          centerTitle: false,
+          indicatorColor: Colors.transparent,
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (states) => TextStyle(
+              fontSize: 12,
+              fontWeight: states.contains(WidgetState.selected)
+                  ? FontWeight.w800
+                  : FontWeight.w700,
+              color: const Color(0xFF111827),
+              letterSpacing: 0,
+            ),
+          ),
         ),
       ),
       home: ObserverHomePage(
@@ -80,6 +83,7 @@ class ObserverHomePage extends StatefulWidget {
 
 class _ObserverHomePageState extends State<ObserverHomePage> {
   late Future<EngineSnapshot> _snapshotFuture;
+  int _selectedTab = 0;
 
   @override
   void initState() {
@@ -97,43 +101,209 @@ class _ObserverHomePageState extends State<ObserverHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Rebalancing Observer'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: _refresh,
-            icon: const Icon(Icons.refresh),
+    return FutureBuilder<EngineSnapshot>(
+      future: _snapshotFuture,
+      builder: (context, snapshot) {
+        final data = snapshot.data ?? EngineSnapshot.sample();
+        final loading = snapshot.connectionState == ConnectionState.waiting;
+
+        return Scaffold(
+          body: SafeArea(
+            child: Column(
+              children: [
+                AppChrome(
+                    snapshot: data, loading: loading, onRefresh: _refresh),
+                const WatchGroupTabs(),
+                Expanded(
+                  child: IndexedStack(
+                    index: _selectedTab,
+                    children: [
+                      WatchlistView(snapshot: data),
+                      RegimeView(snapshot: data),
+                      PortfolioView(snapshot: data),
+                      RiskView(snapshot: data),
+                      LogView(snapshot: data),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          bottomNavigationBar: NavigationBar(
+            height: 72,
+            selectedIndex: _selectedTab,
+            onDestinationSelected: (index) =>
+                setState(() => _selectedTab = index),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.bookmark_border),
+                selectedIcon: Icon(Icons.bookmark),
+                label: '왓치리스트',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.candlestick_chart_outlined),
+                selectedIcon: Icon(Icons.candlestick_chart),
+                label: '레짐',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.explore_outlined),
+                selectedIcon: Icon(Icons.explore),
+                label: '포지션',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.groups_2_outlined),
+                selectedIcon: Icon(Icons.groups_2),
+                label: '리스크',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.menu),
+                selectedIcon: Icon(Icons.menu),
+                label: '로그',
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class AppChrome extends StatelessWidget {
+  const AppChrome({
+    super.key,
+    required this.snapshot,
+    required this.loading,
+    required this.onRefresh,
+  });
+
+  final EngineSnapshot snapshot;
+  final bool loading;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                tooltip: '상태',
+                onPressed: () {},
+                icon: const Icon(Icons.more_horiz, size: 30),
+              ),
+              const Spacer(),
+              Container(
+                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'M',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Mino Engine',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: '새로고침',
+                onPressed: onRefresh,
+                icon: loading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync, size: 28),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              StatusPill(
+                  label: snapshot.regime, color: regimeColor(snapshot.regime)),
+              const SizedBox(width: 8),
+              StatusPill(label: snapshot.mode, color: modeColor(snapshot.mode)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Score ${snapshot.regimeScore.toStringAsFixed(1)} · ${snapshot.lastUpdated}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(
+                    color: Color(0xFF7A7F89),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
-      body: FutureBuilder<EngineSnapshot>(
-        future: _snapshotFuture,
-        builder: (context, snapshot) {
-          final data = snapshot.data ?? EngineSnapshot.sample();
-          final loading = snapshot.connectionState == ConnectionState.waiting;
-          final error = snapshot.hasError ? snapshot.error.toString() : null;
+    );
+  }
+}
 
-          return RefreshIndicator(
-            onRefresh: () async => _refresh(),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: [
-                HeaderBand(snapshot: data, loading: loading, error: error),
-                const SizedBox(height: 12),
-                MetricsGrid(snapshot: data),
-                const SizedBox(height: 12),
-                ResponsiveTwoColumn(
-                  left: PositionsPanel(positions: data.positions),
-                  right: OrdersPanel(orders: data.orders),
+class WatchGroupTabs extends StatelessWidget {
+  const WatchGroupTabs({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    const tabs = ['FUTURE', 'my', 'Regime', 'usdt'];
+    return SizedBox(
+      height: 56,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: tabs.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 26),
+        itemBuilder: (context, index) {
+          final selected = tabs[index] == 'my';
+          return Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: EdgeInsets.symmetric(
+                horizontal: selected ? 24 : 0,
+                vertical: selected ? 12 : 0,
+              ),
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFFF0F0F0) : Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Text(
+                tabs[index],
+                style: TextStyle(
+                  color: selected ? Colors.black : const Color(0xFF777A80),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
                 ),
-                const SizedBox(height: 12),
-                ResponsiveTwoColumn(
-                  left: RiskPanel(snapshot: data),
-                  right: EventPanel(events: data.events),
-                ),
-              ],
+              ),
             ),
           );
         },
@@ -142,156 +312,285 @@ class _ObserverHomePageState extends State<ObserverHomePage> {
   }
 }
 
-class HeaderBand extends StatelessWidget {
-  const HeaderBand({
-    super.key,
-    required this.snapshot,
-    required this.loading,
-    required this.error,
-  });
+class WatchlistView extends StatelessWidget {
+  const WatchlistView({super.key, required this.snapshot});
 
   final EngineSnapshot snapshot;
-  final bool loading;
-  final String? error;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                StatusChip(
-                  label: snapshot.regime,
-                  icon: Icons.insights,
-                  color: regimeColor(snapshot.regime),
-                ),
-                StatusChip(
-                  label: snapshot.marketBias,
-                  icon: Icons.account_tree_outlined,
-                  color: colors.tertiary,
-                ),
-                StatusChip(
-                  label: snapshot.mode,
-                  icon: Icons.swap_calls,
-                  color: modeColor(snapshot.mode),
-                ),
-                StatusChip(
-                  label: snapshot.riskState,
-                  icon: Icons.shield_outlined,
-                  color: riskColor(snapshot.riskState),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Score ${snapshot.regimeScore.toStringAsFixed(1)}',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF17202A),
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${snapshot.source} · ${snapshot.lastUpdated}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF627182),
-                  ),
-            ),
-            if (loading || error != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                loading ? 'Updating...' : 'API fallback active',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: error == null ? colors.primary : colors.error,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ],
-        ),
+    final items = snapshot.watchItems;
+    return RefreshIndicator(
+      onRefresh: () async {},
+      child: ListView.separated(
+        padding: const EdgeInsets.only(bottom: 16),
+        itemCount: items.length,
+        separatorBuilder: (_, __) =>
+            const Divider(height: 1, indent: 38, color: Color(0xFFE5E5E5)),
+        itemBuilder: (context, index) => WatchRow(item: items[index]),
       ),
     );
   }
 }
 
-class MetricsGrid extends StatelessWidget {
-  const MetricsGrid({super.key, required this.snapshot});
+class RegimeView extends StatelessWidget {
+  const RegimeView({super.key, required this.snapshot});
 
   final EngineSnapshot snapshot;
 
   @override
   Widget build(BuildContext context) {
-    final metrics = [
-      MetricItem('Equity', usdt(snapshot.equity), Icons.account_balance_wallet),
-      MetricItem('Current', usdt(snapshot.currentExposure), Icons.timeline),
-      MetricItem('Target', usdt(snapshot.targetExposure), Icons.flag_outlined),
-      MetricItem(
-          'Leverage', '${snapshot.leverage.toStringAsFixed(2)}x', Icons.speed),
+    final rows = [
+      WatchItem(
+        symbol: 'REGIME',
+        title: snapshot.regime,
+        value: snapshot.regimeScore.toStringAsFixed(1),
+        change: snapshot.marketBias,
+        changePct: snapshot.mode,
+        accent: regimeColor(snapshot.regime),
+        marker: 'R',
+      ),
+      WatchItem(
+        symbol: 'EQUITY',
+        title: 'Total account equity',
+        value: compactUsdt(snapshot.equity),
+        change: 'Exposure ${compactUsdt(snapshot.currentExposure)}',
+        changePct: 'Target ${compactUsdt(snapshot.targetExposure)}',
+        accent: const Color(0xFF1D4ED8),
+        marker: 'E',
+      ),
+      WatchItem(
+        symbol: 'LEVERAGE',
+        title: 'Current usage',
+        value: '${snapshot.leverage.toStringAsFixed(2)}x',
+        change: snapshot.leverage <= 2 ? 'Within max' : 'Over max',
+        changePct: 'Max 2.00x',
+        accent: snapshot.leverage <= 2
+            ? const Color(0xFF2F8F75)
+            : const Color(0xFFC8404A),
+        marker: 'L',
+      ),
+      WatchItem(
+        symbol: 'RISK',
+        title: snapshot.riskState,
+        value: pct(snapshot.dailyPnlPct),
+        change: 'Week ${pct(snapshot.weeklyPnlPct)}',
+        changePct: 'Month ${pct(snapshot.monthlyPnlPct)}',
+        accent: riskColor(snapshot.riskState),
+        marker: '!',
+      ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 760 ? 4 : 2;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            mainAxisExtent: 88,
+    return WatchListScaffold(items: rows);
+  }
+}
+
+class PortfolioView extends StatelessWidget {
+  const PortfolioView({super.key, required this.snapshot});
+
+  final EngineSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = snapshot.positions
+        .map(
+          (position) => WatchItem(
+            symbol: position.symbol,
+            title: position.side,
+            value: compactUsdt(position.notional),
+            change: position.side,
+            changePct: position.notional == 0
+                ? '0.00%'
+                : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
+            accent: sideColor(position.side),
+            marker: position.symbol.characters.first,
           ),
-          itemCount: metrics.length,
-          itemBuilder: (context, index) => MetricTile(item: metrics[index]),
-        );
-      },
+        )
+        .toList(growable: false);
+
+    return WatchListScaffold(items: items);
+  }
+}
+
+class RiskView extends StatelessWidget {
+  const RiskView({super.key, required this.snapshot});
+
+  final EngineSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      riskItem(
+          'DAILY', 'Daily loss guard', snapshot.dailyPnlPct, '-2.00%', 'D'),
+      riskItem('WEEKLY', 'Weekly reduction guard', snapshot.weeklyPnlPct,
+          '-5.00%', 'W'),
+      riskItem('MONTHLY', 'Monthly stop guard', snapshot.monthlyPnlPct,
+          '-10.00%', 'M'),
+      WatchItem(
+        symbol: 'COOLDOWN',
+        title: snapshot.cooldownUntil ?? 'No active cooldown',
+        value: snapshot.riskState,
+        change: 'Auto controlled',
+        changePct: 'Read only',
+        accent: riskColor(snapshot.riskState),
+        marker: 'C',
+      ),
+    ];
+
+    return WatchListScaffold(items: items);
+  }
+}
+
+class LogView extends StatelessWidget {
+  const LogView({super.key, required this.snapshot});
+
+  final EngineSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = snapshot.events
+        .map(
+          (event) => WatchItem(
+            symbol: event.kind,
+            title: event.message,
+            value: event.time,
+            change: event.kind,
+            changePct: snapshot.source,
+            accent: event.kind == 'ERROR'
+                ? const Color(0xFFC8404A)
+                : const Color(0xFF2F8F75),
+            marker: event.kind.characters.first,
+          ),
+        )
+        .toList(growable: false);
+
+    return WatchListScaffold(items: items);
+  }
+}
+
+class WatchListScaffold extends StatelessWidget {
+  const WatchListScaffold({super.key, required this.items});
+
+  final List<WatchItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.only(bottom: 16),
+      itemCount: items.length,
+      separatorBuilder: (_, __) =>
+          const Divider(height: 1, indent: 38, color: Color(0xFFE5E5E5)),
+      itemBuilder: (context, index) => WatchRow(item: items[index]),
     );
   }
 }
 
-class MetricTile extends StatelessWidget {
-  const MetricTile({super.key, required this.item});
+class WatchRow extends StatelessWidget {
+  const WatchRow({super.key, required this.item});
 
-  final MetricItem item;
+  final WatchItem item;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final positive = !item.change.trimLeft().startsWith('-');
+    final changeColor =
+        positive ? const Color(0xFF2F8F75) : const Color(0xFFC8404A);
+
+    return SizedBox(
+      height: 96,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
-            Icon(item.icon, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 12),
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: item.accent.withValues(alpha: 0.12),
+              child: Text(
+                item.marker.toUpperCase(),
+                style: TextStyle(
+                  color: item.accent,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.label,
+                    item.symbol,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFF627182),
-                        ),
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF202433),
+                      letterSpacing: 0,
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 5),
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF909399),
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 132,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
                   Text(
                     item.value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                    textAlign: TextAlign.end,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF202433),
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${item.change}  ${item.changePct}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: changeColor,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    item.meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF7A7F89),
+                      letterSpacing: 0,
+                    ),
                   ),
                 ],
               ),
@@ -303,314 +602,32 @@ class MetricTile extends StatelessWidget {
   }
 }
 
-class ResponsiveTwoColumn extends StatelessWidget {
-  const ResponsiveTwoColumn({
-    super.key,
-    required this.left,
-    required this.right,
-  });
-
-  final Widget left;
-  final Widget right;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 860) {
-          return Column(
-            children: [
-              left,
-              const SizedBox(height: 12),
-              right,
-            ],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: left),
-            const SizedBox(width: 12),
-            Expanded(child: right),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class PositionsPanel extends StatelessWidget {
-  const PositionsPanel({super.key, required this.positions});
-
-  final List<PositionView> positions;
-
-  @override
-  Widget build(BuildContext context) {
-    return DataPanel(
-      title: 'Positions',
-      icon: Icons.donut_large,
-      child: Column(
-        children: positions
-            .map(
-              (position) => DenseRow(
-                leading: position.symbol,
-                middle: position.side,
-                trailing: usdt(position.notional),
-                color: position.side == 'LONG'
-                    ? const Color(0xFF138A5E)
-                    : const Color(0xFFB84A3D),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-}
-
-class OrdersPanel extends StatelessWidget {
-  const OrdersPanel({super.key, required this.orders});
-
-  final List<OrderView> orders;
-
-  @override
-  Widget build(BuildContext context) {
-    return DataPanel(
-      title: 'Orders',
-      icon: Icons.receipt_long,
-      child: Column(
-        children: orders
-            .map(
-              (order) => DenseRow(
-                leading: order.symbol,
-                middle: order.action,
-                trailing: usdt(order.notional),
-                color: order.reduceOnly
-                    ? const Color(0xFF8A6D1E)
-                    : Theme.of(context).colorScheme.primary,
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-}
-
-class RiskPanel extends StatelessWidget {
-  const RiskPanel({super.key, required this.snapshot});
-
-  final EngineSnapshot snapshot;
-
-  @override
-  Widget build(BuildContext context) {
-    return DataPanel(
-      title: 'Risk',
-      icon: Icons.health_and_safety_outlined,
-      child: Column(
-        children: [
-          DenseRow(
-            leading: 'Daily',
-            middle: pct(snapshot.dailyPnlPct),
-            trailing: 'Limit -2.0%',
-            color: snapshot.dailyPnlPct < -2
-                ? Colors.red
-                : const Color(0xFF138A5E),
-          ),
-          DenseRow(
-            leading: 'Weekly',
-            middle: pct(snapshot.weeklyPnlPct),
-            trailing: 'Limit -5.0%',
-            color: snapshot.weeklyPnlPct < -5
-                ? Colors.red
-                : const Color(0xFF138A5E),
-          ),
-          DenseRow(
-            leading: 'Monthly',
-            middle: pct(snapshot.monthlyPnlPct),
-            trailing: 'Limit -10.0%',
-            color: snapshot.monthlyPnlPct < -10
-                ? Colors.red
-                : const Color(0xFF138A5E),
-          ),
-          DenseRow(
-            leading: 'Cooldown',
-            middle: snapshot.cooldownUntil ?? 'None',
-            trailing: snapshot.riskState,
-            color: riskColor(snapshot.riskState),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class EventPanel extends StatelessWidget {
-  const EventPanel({super.key, required this.events});
-
-  final List<EventView> events;
-
-  @override
-  Widget build(BuildContext context) {
-    return DataPanel(
-      title: 'Events',
-      icon: Icons.event_note,
-      child: Column(
-        children: events
-            .map(
-              (event) => DenseRow(
-                leading: event.time,
-                middle: event.kind,
-                trailing: event.message,
-                color: event.kind == 'ERROR'
-                    ? Colors.red
-                    : Theme.of(context).colorScheme.primary,
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-}
-
-class DataPanel extends StatelessWidget {
-  const DataPanel({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.child,
-  });
-
-  final String title;
-  final IconData icon;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon,
-                    size: 20, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            child,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class DenseRow extends StatelessWidget {
-  const DenseRow({
-    super.key,
-    required this.leading,
-    required this.middle,
-    required this.trailing,
-    required this.color,
-  });
-
-  final String leading;
-  final String middle;
-  final String trailing;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minHeight: 42),
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: Color(0xFFE9EDF1)),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Text(
-              leading,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 3,
-            child: Text(
-              middle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: color, fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 4,
-            child: Text(
-              trailing,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.end,
-              style: const TextStyle(color: Color(0xFF3B4652)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class StatusChip extends StatelessWidget {
-  const StatusChip({
-    super.key,
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
+class StatusPill extends StatelessWidget {
+  const StatusPill({super.key, required this.label, required this.color});
 
   final String label;
-  final IconData icon;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 34),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0,
+        ),
       ),
     );
   }
@@ -670,6 +687,7 @@ class EngineSnapshot {
     required this.positions,
     required this.orders,
     required this.events,
+    required this.watchItems,
   });
 
   final String source;
@@ -690,9 +708,16 @@ class EngineSnapshot {
   final List<PositionView> positions;
   final List<OrderView> orders;
   final List<EventView> events;
+  final List<WatchItem> watchItems;
 
   factory EngineSnapshot.fromJson(Map<String, dynamic> json) {
-    return EngineSnapshot(
+    final positions = listOf(json['positions'], PositionView.fromJson);
+    final orders = listOf(json['orders'], OrderView.fromJson);
+    final events = listOf(json['events'], EventView.fromJson);
+    final parsedWatchItems =
+        listOf(json['watchlist'] ?? json['watchItems'], WatchItem.fromJson);
+
+    final snapshot = EngineSnapshot(
       source: (json['source'] ?? 'Engine API').toString(),
       lastUpdated:
           (json['last_updated'] ?? json['lastUpdated'] ?? '-').toString(),
@@ -713,14 +738,20 @@ class EngineSnapshot {
       monthlyPnlPct: toDouble(json['monthly_pnl_pct'] ?? json['monthlyPnlPct']),
       cooldownUntil:
           (json['cooldown_until'] ?? json['cooldownUntil'])?.toString(),
-      positions: listOf(json['positions'], PositionView.fromJson),
-      orders: listOf(json['orders'], OrderView.fromJson),
-      events: listOf(json['events'], EventView.fromJson),
+      positions: positions,
+      orders: orders,
+      events: events,
+      watchItems: parsedWatchItems,
     );
+
+    if (snapshot.watchItems.isNotEmpty) {
+      return snapshot;
+    }
+    return snapshot.copyWith(watchItems: defaultWatchItems(snapshot));
   }
 
   static EngineSnapshot sample({String source = 'Sample'}) {
-    return EngineSnapshot(
+    final snapshot = EngineSnapshot(
       source: source,
       lastUpdated: '2026-05-19 23:30 KST',
       regime: 'RANGE',
@@ -739,6 +770,7 @@ class EngineSnapshot {
       positions: const [
         PositionView(symbol: 'BTCUSDT', side: 'FLAT', notional: 0),
         PositionView(symbol: 'ETHUSDT', side: 'FLAT', notional: 0),
+        PositionView(symbol: 'SOLUSDT', side: 'FLAT', notional: 0),
       ],
       orders: const [
         OrderView(
@@ -757,16 +789,40 @@ class EngineSnapshot {
             kind: 'TUNNEL',
             message: 'engine.medicalnewshub.info online'),
       ],
+      watchItems: const [],
+    );
+
+    return snapshot.copyWith(watchItems: defaultWatchItems(snapshot));
+  }
+
+  EngineSnapshot copyWith({List<WatchItem>? watchItems}) {
+    return EngineSnapshot(
+      source: source,
+      lastUpdated: lastUpdated,
+      regime: regime,
+      marketBias: marketBias,
+      mode: mode,
+      riskState: riskState,
+      regimeScore: regimeScore,
+      equity: equity,
+      currentExposure: currentExposure,
+      targetExposure: targetExposure,
+      leverage: leverage,
+      dailyPnlPct: dailyPnlPct,
+      weeklyPnlPct: weeklyPnlPct,
+      monthlyPnlPct: monthlyPnlPct,
+      cooldownUntil: cooldownUntil,
+      positions: positions,
+      orders: orders,
+      events: events,
+      watchItems: watchItems ?? this.watchItems,
     );
   }
 }
 
 class PositionView {
-  const PositionView({
-    required this.symbol,
-    required this.side,
-    required this.notional,
-  });
+  const PositionView(
+      {required this.symbol, required this.side, required this.notional});
 
   final String symbol;
   final String side;
@@ -805,11 +861,8 @@ class OrderView {
 }
 
 class EventView {
-  const EventView({
-    required this.time,
-    required this.kind,
-    required this.message,
-  });
+  const EventView(
+      {required this.time, required this.kind, required this.message});
 
   final String time;
   final String kind;
@@ -824,12 +877,113 @@ class EventView {
   }
 }
 
-class MetricItem {
-  const MetricItem(this.label, this.value, this.icon);
+class WatchItem {
+  const WatchItem({
+    required this.symbol,
+    required this.title,
+    required this.value,
+    required this.change,
+    required this.changePct,
+    required this.accent,
+    required this.marker,
+    this.meta = '',
+  });
 
-  final String label;
+  final String symbol;
+  final String title;
   final String value;
-  final IconData icon;
+  final String change;
+  final String changePct;
+  final Color accent;
+  final String marker;
+  final String meta;
+
+  factory WatchItem.fromJson(Map<String, dynamic> json) {
+    return WatchItem(
+      symbol: (json['symbol'] ?? '-').toString(),
+      title: (json['title'] ?? json['name'] ?? '-').toString(),
+      value: (json['value'] ?? '-').toString(),
+      change: (json['change'] ?? '').toString(),
+      changePct: (json['change_pct'] ?? json['changePct'] ?? '').toString(),
+      accent: parseColor(json['color']) ?? const Color(0xFF2F8F75),
+      marker:
+          (json['marker'] ?? json['symbol'] ?? '?').toString().characters.first,
+      meta: (json['meta'] ?? '').toString(),
+    );
+  }
+}
+
+List<WatchItem> defaultWatchItems(EngineSnapshot snapshot) {
+  return [
+    WatchItem(
+      symbol: 'BTCUSDT',
+      title: 'Bitcoin perpetual',
+      value: snapshot.mode,
+      change: snapshot.regime,
+      changePct: snapshot.marketBias,
+      accent: const Color(0xFFF7931A),
+      marker: '₿',
+      meta: 'Signal 4H',
+    ),
+    WatchItem(
+      symbol: 'TOTAL',
+      title: 'Crypto market cap',
+      value: snapshot.regimeScore.toStringAsFixed(1),
+      change: snapshot.regimeScore >= 0 ? '+Score' : '-Score',
+      changePct: snapshot.marketBias,
+      accent: const Color(0xFF2F8F75),
+      marker: 'T',
+      meta: snapshot.lastUpdated,
+    ),
+    WatchItem(
+      symbol: 'EQUITY',
+      title: 'USDT-M account equity',
+      value: compactUsdt(snapshot.equity),
+      change: 'Lev ${snapshot.leverage.toStringAsFixed(2)}x',
+      changePct: 'Target ${compactUsdt(snapshot.targetExposure)}',
+      accent: const Color(0xFF2563EB),
+      marker: 'E',
+      meta: snapshot.source,
+    ),
+    WatchItem(
+      symbol: 'RISK',
+      title: snapshot.riskState,
+      value: pct(snapshot.dailyPnlPct),
+      change: 'W ${pct(snapshot.weeklyPnlPct)}',
+      changePct: 'M ${pct(snapshot.monthlyPnlPct)}',
+      accent: riskColor(snapshot.riskState),
+      marker: '!',
+      meta: snapshot.cooldownUntil ?? 'No cooldown',
+    ),
+    ...snapshot.positions.map(
+      (position) => WatchItem(
+        symbol: position.symbol,
+        title: position.side,
+        value: compactUsdt(position.notional),
+        change: position.side,
+        changePct: position.notional == 0
+            ? '0.00%'
+            : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
+        accent: sideColor(position.side),
+        marker: position.symbol.characters.first,
+        meta: 'Current position',
+      ),
+    ),
+  ];
+}
+
+WatchItem riskItem(
+    String symbol, String title, double pnl, String limit, String marker) {
+  return WatchItem(
+    symbol: symbol,
+    title: title,
+    value: pct(pnl),
+    change: pnl >= 0 ? '+OK' : pct(pnl),
+    changePct: 'Limit $limit',
+    accent: pnl < 0 ? const Color(0xFFC8404A) : const Color(0xFF2F8F75),
+    marker: marker,
+    meta: 'Auto guard',
+  );
 }
 
 List<T> listOf<T>(Object? raw, T Function(Map<String, dynamic>) parser) {
@@ -846,10 +1000,16 @@ double toDouble(Object? value) {
   return 0;
 }
 
-String usdt(double value) {
+String compactUsdt(double value) {
   final sign = value < 0 ? '-' : '';
   final absolute = value.abs();
-  return '$sign${absolute.toStringAsFixed(absolute >= 100 ? 0 : 2)} USDT';
+  if (absolute >= 1000000) {
+    return '$sign${(absolute / 1000000).toStringAsFixed(2)}M';
+  }
+  if (absolute >= 1000) {
+    return '$sign${(absolute / 1000).toStringAsFixed(2)}K';
+  }
+  return '$sign${absolute.toStringAsFixed(absolute >= 100 ? 0 : 2)}';
 }
 
 String pct(double value) =>
@@ -857,28 +1017,46 @@ String pct(double value) =>
 
 Color regimeColor(String regime) {
   return switch (regime) {
-    'BULL' || 'TOP10_LONG' => const Color(0xFF138A5E),
-    'BEAR' || 'SHORT_MODE' || 'ALT_WEAK_SHORT' => const Color(0xFFB84A3D),
+    'BULL' || 'TOP10_LONG' => const Color(0xFF2F8F75),
+    'BEAR' || 'SHORT_MODE' || 'ALT_WEAK_SHORT' => const Color(0xFFC8404A),
     'CHAOTIC' => const Color(0xFF8F3FA8),
-    _ => const Color(0xFF627182),
+    _ => const Color(0xFF787B86),
   };
 }
 
 Color modeColor(String mode) {
   return switch (mode) {
-    'LONG' => const Color(0xFF138A5E),
-    'SHORT' => const Color(0xFFB84A3D),
+    'LONG' => const Color(0xFF2F8F75),
+    'SHORT' => const Color(0xFFC8404A),
     'PAUSED' => const Color(0xFF8F3FA8),
-    _ => const Color(0xFF627182),
+    _ => const Color(0xFF787B86),
+  };
+}
+
+Color sideColor(String side) {
+  return switch (side) {
+    'LONG' => const Color(0xFF2F8F75),
+    'SHORT' => const Color(0xFFC8404A),
+    'FLAT' => const Color(0xFF787B86),
+    _ => const Color(0xFF2563EB),
   };
 }
 
 Color riskColor(String risk) {
   return switch (risk) {
-    'OK' || 'NONE' => const Color(0xFF138A5E),
-    'BLOCK_NEW_ENTRIES' => const Color(0xFF8A6D1E),
-    'REDUCE_HALF' => const Color(0xFFB56B00),
-    'CLOSE_ALL_AND_PAUSE' => const Color(0xFFB84A3D),
-    _ => const Color(0xFF627182),
+    'OK' || 'NONE' => const Color(0xFF2F8F75),
+    'BLOCK_NEW_ENTRIES' => const Color(0xFFC08A17),
+    'REDUCE_HALF' => const Color(0xFFC08A17),
+    'CLOSE_ALL_AND_PAUSE' => const Color(0xFFC8404A),
+    _ => const Color(0xFF787B86),
   };
+}
+
+Color? parseColor(Object? raw) {
+  if (raw is! String) return null;
+  final normalized = raw.replaceAll('#', '');
+  if (normalized.length != 6) return null;
+  final value = int.tryParse('FF$normalized', radix: 16);
+  if (value == null) return null;
+  return Color(value);
 }
