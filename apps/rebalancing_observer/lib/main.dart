@@ -560,7 +560,7 @@ class EngineApiClient {
     try {
       final response = await client
           .get(Uri.parse('$baseUrl/status'))
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw StateError('status ${response.statusCode}');

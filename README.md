@@ -95,6 +95,26 @@ curl https://engine.medicalnewshub.info/status
 
 응답에는 앱이 바로 읽는 `watchlist`, `positions`, `orders`, `events`, `equity`, `regime`, `mode`, `risk_state`가 포함됩니다.
 
+## Market Internal Engine
+
+TradingView는 EMA/TOTAL/BTC.D 기반 시그널 계산기로 두고, 서버는 시장 내부 데이터를 계산합니다.
+
+서버 계산 항목:
+
+- `stable_dominance_pct`: USDT, USDC, DAI, FDUSD, TUSD, USDE 등 스테이블 시총 / 전체 시총
+- `top10_dominance_total_pct`: 스테이블 제외 시총 상위 10개 / 전체 시총
+- `top10_dominance_total2_pct`: 스테이블 제외 시총 상위 10개 / BTC 제외 시총
+- `volume_breadth_pct`: Binance USDT-M 상위 유니버스 중 현재 거래량이 20EMA 거래량보다 큰 비율
+- `advance_decline_ratio`: 상승 코인 수 / 하락 코인 수
+
+`/status`의 `market_internals`와 `watchlist`에 같이 노출됩니다. CoinGecko가 응답하면 시총 기준 top10이 포트폴리오 후보군의 `dominance_rank`에 반영되고, CoinGecko가 막히면 Binance 거래대금 기반 점유율로 fallback합니다.
+
+```bash
+export COINGECKO_API_KEY="optional_demo_or_pro_key"
+export MARKET_INTERNALS_UNIVERSE_LIMIT=200
+export MARKET_INTERNALS_BREADTH_LIMIT=100
+```
+
 ## 주문 실행
 
 주문 실행은 기본적으로 드라이런입니다. 실주문은 코드와 환경변수 양쪽에서 이중 잠금이 걸려 있습니다.

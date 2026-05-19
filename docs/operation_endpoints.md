@@ -60,7 +60,17 @@ curl http://127.0.0.1:8788/health
 curl https://engine.medicalnewshub.info/status
 ```
 
-`/status` returns account equity, exposure, regime, positions, planned orders, risk state, events, and app watchlist rows. Without Binance environment keys it still returns a fallback account plus live public Binance futures universe data.
+`/status` returns account equity, exposure, regime, positions, planned orders, risk state, events, market internals, and app watchlist rows. Without Binance environment keys it still returns a fallback account plus live public Binance futures universe data.
+
+Market internal fields:
+
+```text
+market_internals.stable_dominance_pct
+market_internals.top10_dominance_total_pct
+market_internals.top10_dominance_total2_pct
+market_internals.volume_breadth_pct
+market_internals.advance_decline_ratio
+```
 
 ## Observer App
 

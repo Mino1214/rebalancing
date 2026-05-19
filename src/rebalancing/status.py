@@ -8,6 +8,7 @@ from typing import Any
 
 from .binance import BinanceCredentials, BinanceFuturesClient, live_trading_enabled
 from .engine import RebalancingEngine
+from .market_internals import MarketInternals, apply_market_cap_dominance, build_market_internals
 from .models import (
     AccountSnapshot,
     BtcMarketSnapshot,
@@ -26,6 +27,7 @@ class RuntimeDecision:
     candidates: list[MarketCandidate]
     positions: list[Position]
     decision: RebalanceDecision
+    internals: MarketInternals
     events: list[dict[str, str]]
     live_data: bool
 
@@ -37,6 +39,9 @@ def build_runtime_decision(*, force_rebalance: bool = False) -> RuntimeDecision:
     account = _account_snapshot(client, events)
     positions = _positions(client, events)
     candidates = _candidates(client, events)
+    internals = build_market_internals(binance=client, candidates=candidates)
+    candidates = apply_market_cap_dominance(candidates, internals)
+    events.extend(_event("INTERNALS", message) for message in internals.messages[:20])
     btc = _btc_snapshot(client, events)
 
     decision = RebalancingEngine().evaluate(
@@ -56,6 +61,7 @@ def build_runtime_decision(*, force_rebalance: bool = False) -> RuntimeDecision:
         candidates=candidates,
         positions=positions,
         decision=decision,
+        internals=internals,
         events=events,
         live_data=any(event["kind"] == "BINANCE" for event in events),
     )
@@ -94,6 +100,7 @@ def runtime_status_payload(runtime: RuntimeDecision) -> dict[str, Any]:
         if decision.next_state.cooldown_until
         else None,
         "live_trading_enabled": live_trading_enabled(),
+        "market_internals": runtime.internals.to_payload(),
         "positions": [_position_payload(position) for position in runtime.positions],
         "orders": [_order_payload(order) for order in decision.orders],
         "targets": [_target_payload(target) for target in decision.target_positions],
@@ -244,6 +251,36 @@ def _watchlist_payload(runtime: RuntimeDecision) -> list[dict[str, Any]]:
             "meta": "Trading engine state",
         },
         {
+            "symbol": "INTERNALS",
+            "title": runtime.internals.risk_label,
+            "value": _fmt_pct(runtime.internals.volume_breadth_pct),
+            "change": f"AD {_fmt_ratio(runtime.internals.advance_decline_ratio)}",
+            "change_pct": f"{runtime.internals.advance_count}/{runtime.internals.decline_count}",
+            "color": _internals_color(runtime.internals.risk_label),
+            "marker": "I",
+            "meta": f"{runtime.internals.source} breadth",
+        },
+        {
+            "symbol": "STABLE.D",
+            "title": "Stablecoin market-cap dominance",
+            "value": _fmt_pct(runtime.internals.stable_dominance_pct),
+            "change": "defensive" if (runtime.internals.stable_dominance_pct or 0) >= 10 else "normal",
+            "change_pct": "cap",
+            "color": "C08A17" if (runtime.internals.stable_dominance_pct or 0) >= 10 else "2F8F75",
+            "marker": "S",
+            "meta": "USDT/USDC/DAI/FDUSD/TUSD/USDE...",
+        },
+        {
+            "symbol": "TOP10.D",
+            "title": "Top10 non-stable market-cap dominance",
+            "value": _fmt_pct(runtime.internals.top10_dominance_total_pct),
+            "change": _fmt_pct(runtime.internals.top10_dominance_total2_pct),
+            "change_pct": "vs TOTAL2",
+            "color": "2563EB",
+            "marker": "T",
+            "meta": "CoinGecko market cap" if runtime.internals.source.startswith("coingecko") else "Binance volume fallback",
+        },
+        {
             "symbol": "EQUITY",
             "title": "USDT-M account",
             "value": f"{account.equity:.2f}",
@@ -343,3 +380,23 @@ def _regime_color(regime: str) -> str:
     if regime == "CHAOTIC":
         return "8F3FA8"
     return "787B86"
+
+
+def _internals_color(label: str) -> str:
+    if label == "BROAD_RISK_ON":
+        return "2F8F75"
+    if label in {"BROAD_RISK_OFF", "STABLE_DEFENSIVE"}:
+        return "C8404A"
+    return "787B86"
+
+
+def _fmt_pct(value: float | None) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.2f}%"
+
+
+def _fmt_ratio(value: float | None) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.2f}"

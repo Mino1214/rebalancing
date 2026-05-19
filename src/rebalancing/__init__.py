@@ -1,5 +1,13 @@
 from .binance import BinanceCredentials, BinanceFuturesClient, BinanceOrderResult, SymbolRules, live_trading_enabled
 from .engine import RebalancingEngine
+from .market_internals import (
+    CoinGeckoClient,
+    MarketCapCoin,
+    MarketInternals,
+    advance_decline_from_candidates,
+    apply_market_cap_dominance,
+    build_market_internals,
+)
 from .models import (
     AccountSnapshot,
     BtcMarketSnapshot,
@@ -31,12 +39,15 @@ __all__ = [
     "BinanceOrderResult",
     "BtcMarketSnapshot",
     "Candle",
+    "CoinGeckoClient",
     "CryptoMarketSnapshot",
     "EngineConfig",
     "EngineState",
     "MarketBias",
     "MarketCandidate",
+    "MarketCapCoin",
     "MarketIndexSnapshot",
+    "MarketInternals",
     "OrderSide",
     "OrderType",
     "PlannedOrder",
@@ -54,5 +65,8 @@ __all__ = [
     "TradingViewAlertError",
     "TradingViewAlertGate",
     "TradingViewRegime",
+    "advance_decline_from_candidates",
+    "apply_market_cap_dominance",
+    "build_market_internals",
     "live_trading_enabled",
 ]
