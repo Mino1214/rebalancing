@@ -44,6 +44,7 @@ src/rebalancing/
 Flutter 관전 전용 앱 방향은 [docs/flutter_app_direction.md](docs/flutter_app_direction.md), 무개입 자동 운영 원칙은 [docs/autonomous_operation.md](docs/autonomous_operation.md), 강화 테스트 방향은 [docs/testing_strategy.md](docs/testing_strategy.md)에 정리했습니다.
 TradingView 웹훅 alert 보강안은 [docs/tradingview_alerts.md](docs/tradingview_alerts.md)에 정리했습니다.
 Cloudflare webhook receiver 방향과 Worker 골격은 [docs/cloudflare_webhook.md](docs/cloudflare_webhook.md), [workers/tradingview-webhook](workers/tradingview-webhook)에 정리했습니다.
+Cloudflare Tunnel로 개인 실행 엔진을 붙이는 방법은 [docs/cloudflare_tunnel.md](docs/cloudflare_tunnel.md)에 정리했습니다.
 
 ## 점수제 레짐
 

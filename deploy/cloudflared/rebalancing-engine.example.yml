@@ -1,0 +1,8 @@
+tunnel: replace_with_tunnel_uuid
+credentials-file: /absolute/path/to/tunnel-credentials.json
+
+ingress:
+  - hostname: engine.example.com
+    service: http://localhost:8788
+  - service: http_status:404
+
