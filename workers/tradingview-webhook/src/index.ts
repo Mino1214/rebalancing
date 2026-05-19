@@ -2,6 +2,8 @@ export interface Env {
   TV_WEBHOOK_PASSPHRASE: string;
   TV_ALERT_DEDUPE?: KVNamespace;
   TV_ALERT_QUEUE?: Queue<TradingViewAlert>;
+  ENGINE_WEBHOOK_URL?: string;
+  ENGINE_WEBHOOK_TOKEN?: string;
   MAX_ALERT_AGE_SECONDS?: string;
   MAX_LEVERAGE?: string;
 }
@@ -83,6 +85,8 @@ export default {
       await env.TV_ALERT_QUEUE.send(normalized);
     }
 
+    const forwardResult = await forwardToEngine(normalized, env);
+
     return jsonResponse(
       {
         ok: true,
@@ -90,6 +94,9 @@ export default {
         signal_id: normalized.signal_id,
         regime: normalized.regime,
         target_leverage: normalized.target_leverage,
+        forwarded: forwardResult.forwarded,
+        forward_status: forwardResult.status,
+        forward_error: forwardResult.error,
       },
       202,
     );
@@ -170,6 +177,50 @@ async function isDuplicate(alert: AcceptedAlert, env: Env): Promise<boolean> {
 
   await env.TV_ALERT_DEDUPE.put(key, "1", { expirationTtl: 60 * 60 * 24 * 7 });
   return false;
+}
+
+async function forwardToEngine(
+  alert: AcceptedAlert,
+  env: Env,
+): Promise<{ forwarded: boolean; status?: number; error?: string }> {
+  if (!env.ENGINE_WEBHOOK_URL || !env.ENGINE_WEBHOOK_TOKEN) {
+    return { forwarded: false, error: "engine_forward_not_configured" };
+  }
+
+  const { passphrase: _passphrase, ...engineAlert } = alert;
+  const payload = {
+    ...engineAlert,
+    forwarded_at_ms: Date.now(),
+  };
+
+  try {
+    const response = await fetch(env.ENGINE_WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-engine-token": env.ENGINE_WEBHOOK_TOKEN,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      const error = text.length > 160 ? `${text.slice(0, 157)}...` : text;
+      console.warn("Engine webhook forward failed", {
+        status: response.status,
+        signal_id: alert.signal_id,
+        error,
+      });
+      return { forwarded: false, status: response.status, error };
+    }
+    return { forwarded: true, status: response.status };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    console.warn("Engine webhook forward failed", {
+      signal_id: alert.signal_id,
+      error: message,
+    });
+    return { forwarded: false, error: message };
+  }
 }
 
 function jsonResponse(body: unknown, status: number): Response {

@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import hmac
+import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
+from .signal_store import expected_engine_webhook_token, record_tradingview_alert
 from .status import build_status_payload, payload_to_json
+from .tradingview import TradingViewAlertError
 
 
 class StatusHandler(BaseHTTPRequestHandler):
     server_version = "RebalancingStatus/0.1"
+    max_body_bytes = 64 * 1024
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
@@ -24,6 +29,54 @@ class StatusHandler(BaseHTTPRequestHandler):
             return
 
         self._json({"ok": False, "error": "not_found"}, status=404)
+
+    def do_HEAD(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path in {"/health", "/status"}:
+            self.send_response(200)
+            self._cors_headers()
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
+
+        self.send_response(404)
+        self._cors_headers()
+        self.end_headers()
+
+    def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path != "/webhook/tradingview":
+            self._json({"ok": False, "error": "not_found"}, status=404)
+            return
+
+        if not self._authorized():
+            self._json({"ok": False, "error": "unauthorized"}, status=401)
+            return
+
+        try:
+            payload = self._read_json_body()
+            record, duplicate = record_tradingview_alert(payload)
+        except ValueError as exc:
+            self._json({"ok": False, "error": "bad_request", "details": str(exc)}, status=400)
+            return
+        except TradingViewAlertError as exc:
+            self._json({"ok": False, "error": "invalid_alert", "details": str(exc)}, status=400)
+            return
+        except Exception as exc:
+            self._json({"ok": False, "error": "store_failed", "details": str(exc)}, status=500)
+            return
+
+        self._json(
+            {
+                "ok": True,
+                "accepted": not duplicate,
+                "duplicate": duplicate,
+                "signal_id": record["signal_id"],
+                "regime": record["regime"],
+                "target_leverage": record["target_leverage"],
+            },
+            status=200 if duplicate else 202,
+        )
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
@@ -46,8 +99,34 @@ class StatusHandler(BaseHTTPRequestHandler):
 
     def _cors_headers(self) -> None:
         self.send_header("Access-Control-Allow-Origin", os.environ.get("ENGINE_CORS_ORIGIN", "*"))
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Engine-Token")
+
+    def _authorized(self) -> bool:
+        expected = expected_engine_webhook_token()
+        if not expected:
+            return False
+        provided = self.headers.get("X-Engine-Token", "")
+        return hmac.compare_digest(provided, expected)
+
+    def _read_json_body(self) -> dict:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError as exc:
+            raise ValueError("invalid Content-Length") from exc
+        if length <= 0:
+            raise ValueError("empty request body")
+        if length > self.max_body_bytes:
+            raise ValueError("request body too large")
+
+        raw = self.rfile.read(length)
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError("invalid JSON body") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("JSON body must be an object")
+        return payload
 
 
 def run() -> None:

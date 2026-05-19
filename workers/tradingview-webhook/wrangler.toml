@@ -20,3 +20,4 @@ id = "432e0f1994c14627a331a170e9490242"
 [vars]
 MAX_ALERT_AGE_SECONDS = "300"
 MAX_LEVERAGE = "2"
+ENGINE_WEBHOOK_URL = "https://engine.medicalnewshub.info/webhook/tradingview"

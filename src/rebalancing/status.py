@@ -18,6 +18,7 @@ from .models import (
     Position,
     RebalanceDecision,
 )
+from .signal_store import latest_tradingview_alert, tradingview_alert_events
 
 
 @dataclass(frozen=True)
@@ -78,10 +79,13 @@ def runtime_status_payload(runtime: RuntimeDecision) -> dict[str, Any]:
     current_exposure = sum(position.notional for position in runtime.positions)
     target_exposure = sum(target.notional for target in decision.target_positions)
     leverage = current_exposure / account.equity if account.equity > 0 else 0.0
+    tv_signal = latest_tradingview_alert()
+    events = tradingview_alert_events(limit=10) + runtime.events
 
     return {
         "source": "Binance live" if runtime.live_data else "Local fallback",
         "last_updated": decision.now.isoformat(),
+        "tradingview_signal": tv_signal,
         "regime": decision.regime.value,
         "raw_regime": decision.raw_regime.value,
         "market_bias": decision.market_bias.value,
@@ -104,7 +108,7 @@ def runtime_status_payload(runtime: RuntimeDecision) -> dict[str, Any]:
         "positions": [_position_payload(position) for position in runtime.positions],
         "orders": [_order_payload(order) for order in decision.orders],
         "targets": [_target_payload(target) for target in decision.target_positions],
-        "events": runtime.events,
+        "events": events,
         "watchlist": _watchlist_payload(runtime),
     }
 
@@ -230,6 +234,7 @@ def _fallback_candidates() -> list[MarketCandidate]:
 def _watchlist_payload(runtime: RuntimeDecision) -> list[dict[str, Any]]:
     decision = runtime.decision
     account = runtime.account
+    tv_signal = latest_tradingview_alert()
     top10 = sorted(
         runtime.candidates,
         key=lambda candidate: (
@@ -291,6 +296,21 @@ def _watchlist_payload(runtime: RuntimeDecision) -> list[dict[str, Any]]:
             "meta": "Binance signed data" if runtime.live_data else "Fallback",
         },
     ]
+
+    if tv_signal is not None:
+        rows.insert(
+            1,
+            {
+                "symbol": "TV.SIGNAL",
+                "title": f"{tv_signal.get('regime', '-')} · tf {tv_signal.get('tf') or '-'}",
+                "value": f"{float(tv_signal.get('target_leverage') or 0):.2f}x",
+                "change": "accepted",
+                "change_pct": str(tv_signal.get("signal_id", "-"))[:16],
+                "color": _regime_color(str(tv_signal.get("regime", "RANGE"))),
+                "marker": "T",
+                "meta": "TradingView webhook",
+            },
+        )
 
     for candidate in top10:
         rows.append(
