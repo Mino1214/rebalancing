@@ -45,6 +45,7 @@ Flutter 관전 전용 앱 방향은 [docs/flutter_app_direction.md](docs/flutter
 TradingView 웹훅 alert 보강안은 [docs/tradingview_alerts.md](docs/tradingview_alerts.md)에 정리했습니다.
 Cloudflare webhook receiver 방향과 Worker 골격은 [docs/cloudflare_webhook.md](docs/cloudflare_webhook.md), [workers/tradingview-webhook](workers/tradingview-webhook)에 정리했습니다.
 Cloudflare Tunnel로 개인 실행 엔진을 붙이는 방법은 [docs/cloudflare_tunnel.md](docs/cloudflare_tunnel.md)에 정리했습니다.
+운영 URL, 4시간봉 기준, 수신 테스트, Flutter 앱 실행법은 [docs/operation_endpoints.md](docs/operation_endpoints.md)에 정리했습니다.
 
 ## 점수제 레짐
 
