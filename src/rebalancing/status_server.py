@@ -4,8 +4,10 @@ import hmac
 import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 from urllib.parse import urlparse
 
+from .paper import paper_trading_enabled, process_paper_alert
 from .signal_store import expected_engine_webhook_token, record_tradingview_alert
 from .status import build_status_payload, payload_to_json
 from .tradingview import TradingViewAlertError
@@ -56,6 +58,8 @@ class StatusHandler(BaseHTTPRequestHandler):
         try:
             payload = self._read_json_body()
             record, duplicate = record_tradingview_alert(payload)
+            if paper_trading_enabled() and not duplicate:
+                Thread(target=_process_paper_alert, args=(payload,), daemon=True).start()
         except ValueError as exc:
             self._json({"ok": False, "error": "bad_request", "details": str(exc)}, status=400)
             return
@@ -135,6 +139,14 @@ def run() -> None:
     server = ThreadingHTTPServer((host, port), StatusHandler)
     print(f"status API listening on http://{host}:{port}")
     server.serve_forever()
+
+
+def _process_paper_alert(payload: dict) -> None:
+    try:
+        process_paper_alert(payload)
+    except Exception as exc:
+        if os.environ.get("ENGINE_ACCESS_LOG", "").lower() == "true":
+            print(f"paper processing failed: {exc}")
 
 
 if __name__ == "__main__":

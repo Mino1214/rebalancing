@@ -18,6 +18,7 @@ from .models import (
     Position,
     RebalanceDecision,
 )
+from .paper import paper_status_payload
 from .signal_store import latest_tradingview_alert, tradingview_alert_events
 
 
@@ -76,40 +77,53 @@ def build_status_payload(*, force_rebalance: bool = False) -> dict[str, Any]:
 def runtime_status_payload(runtime: RuntimeDecision) -> dict[str, Any]:
     account = runtime.account
     decision = runtime.decision
-    current_exposure = sum(position.notional for position in runtime.positions)
-    target_exposure = sum(target.notional for target in decision.target_positions)
-    leverage = current_exposure / account.equity if account.equity > 0 else 0.0
+    paper = paper_status_payload()
+    current_exposure = (
+        paper["current_exposure"] if paper else sum(position.notional for position in runtime.positions)
+    )
+    target_exposure = (
+        paper["target_exposure"] if paper else sum(target.notional for target in decision.target_positions)
+    )
+    equity = paper["equity"] if paper else account.equity
+    wallet_balance = paper["equity"] if paper else account.wallet_balance
+    leverage = current_exposure / equity if equity > 0 else 0.0
     tv_signal = latest_tradingview_alert()
-    events = tradingview_alert_events(limit=_env_int("ENGINE_STATUS_ALERT_EVENT_LIMIT", 200)) + runtime.events
+    paper_events = paper["events"] if paper else []
+    events = (
+        tradingview_alert_events(limit=_env_int("ENGINE_STATUS_ALERT_EVENT_LIMIT", 200))
+        + paper_events
+        + runtime.events
+    )
 
     return {
-        "source": "Binance live" if runtime.live_data else "Local fallback",
+        "source": paper["source"] if paper else ("Binance live" if runtime.live_data else "Local fallback"),
         "last_updated": decision.now.isoformat(),
         "tradingview_signal": tv_signal,
-        "regime": decision.regime.value,
+        "paper": paper,
+        "regime": paper["regime"] if paper else decision.regime.value,
         "raw_regime": decision.raw_regime.value,
-        "market_bias": decision.market_bias.value,
-        "mode": decision.mode.value,
+        "market_bias": paper["market_bias"] if paper else decision.market_bias.value,
+        "mode": paper["mode"] if paper else decision.mode.value,
         "risk_state": decision.risk_action.value,
         "regime_score": decision.regime_score,
-        "equity": account.equity,
-        "wallet_balance": account.wallet_balance,
+        "equity": equity,
+        "wallet_balance": wallet_balance,
         "current_exposure": current_exposure,
         "target_exposure": target_exposure,
         "leverage": leverage,
-        "daily_pnl_pct": _pnl_pct(account.equity, account.day_start_equity),
-        "weekly_pnl_pct": _pnl_pct(account.equity, account.week_start_equity),
-        "monthly_pnl_pct": _pnl_pct(account.equity, account.month_start_equity),
+        "daily_pnl_pct": paper["total_pnl_pct"] if paper else _pnl_pct(account.equity, account.day_start_equity),
+        "weekly_pnl_pct": paper["total_pnl_pct"] if paper else _pnl_pct(account.equity, account.week_start_equity),
+        "monthly_pnl_pct": paper["total_pnl_pct"] if paper else _pnl_pct(account.equity, account.month_start_equity),
         "cooldown_until": decision.next_state.cooldown_until.isoformat()
         if decision.next_state.cooldown_until
         else None,
         "live_trading_enabled": live_trading_enabled(),
         "market_internals": runtime.internals.to_payload(),
-        "positions": [_position_payload(position) for position in runtime.positions],
-        "orders": [_order_payload(order) for order in decision.orders],
-        "targets": [_target_payload(target) for target in decision.target_positions],
+        "positions": paper["positions"] if paper else [_position_payload(position) for position in runtime.positions],
+        "orders": paper["orders"] if paper else [_order_payload(order) for order in decision.orders],
+        "targets": paper["targets"] if paper else [_target_payload(target) for target in decision.target_positions],
         "events": events,
-        "watchlist": _watchlist_payload(runtime),
+        "watchlist": _watchlist_payload(runtime, paper=paper),
     }
 
 
@@ -231,10 +245,16 @@ def _fallback_candidates() -> list[MarketCandidate]:
     ]
 
 
-def _watchlist_payload(runtime: RuntimeDecision) -> list[dict[str, Any]]:
+def _watchlist_payload(runtime: RuntimeDecision, *, paper: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     decision = runtime.decision
     account = runtime.account
     tv_signal = latest_tradingview_alert()
+    regime = paper["regime"] if paper else decision.regime.value
+    mode = paper["mode"] if paper else decision.mode.value
+    market_bias = paper["market_bias"] if paper else decision.market_bias.value
+    equity = paper["equity"] if paper else account.equity
+    current_exposure = paper["current_exposure"] if paper else sum(position.notional for position in runtime.positions)
+    target_exposure = paper["target_exposure"] if paper else sum(target.notional for target in decision.target_positions)
     top10 = sorted(
         runtime.candidates,
         key=lambda candidate: (
@@ -247,13 +267,13 @@ def _watchlist_payload(runtime: RuntimeDecision) -> list[dict[str, Any]]:
     rows = [
         {
             "symbol": "REGIME",
-            "title": decision.market_bias.value,
-            "value": decision.regime.value,
+            "title": market_bias,
+            "value": regime,
             "change": f"Score {decision.regime_score:.1f}",
-            "change_pct": decision.mode.value,
-            "color": _regime_color(decision.regime.value),
+            "change_pct": mode,
+            "color": _regime_color(regime),
             "marker": "R",
-            "meta": "Trading engine state",
+            "meta": "Paper trading state" if paper else "Trading engine state",
         },
         {
             "symbol": "INTERNALS",
@@ -288,14 +308,29 @@ def _watchlist_payload(runtime: RuntimeDecision) -> list[dict[str, Any]]:
         {
             "symbol": "EQUITY",
             "title": "USDT-M account",
-            "value": f"{account.equity:.2f}",
-            "change": f"Lev {sum(position.notional for position in runtime.positions) / account.equity:.2f}x",
-            "change_pct": f"Target {sum(target.notional for target in decision.target_positions):.2f}",
+            "value": f"{equity:.2f}",
+            "change": f"Lev {current_exposure / equity:.2f}x" if equity > 0 else "Lev 0.00x",
+            "change_pct": f"Target {target_exposure:.2f}",
             "color": "2563EB",
             "marker": "E",
-            "meta": "Binance signed data" if runtime.live_data else "Fallback",
+            "meta": "Paper trading" if paper else ("Binance signed data" if runtime.live_data else "Fallback"),
         },
     ]
+
+    if paper is not None:
+        rows.insert(
+            1,
+            {
+                "symbol": "PAPER.PNL",
+                "title": "Virtual futures result",
+                "value": f"{paper['total_pnl']:+.2f}",
+                "change": f"{paper['total_pnl_pct']:+.2f}%",
+                "change_pct": f"Realized {paper['realized_pnl']:+.2f}",
+                "color": "2F8F75" if paper["total_pnl"] >= 0 else "C8404A",
+                "marker": "P",
+                "meta": f"Unrealized {paper['unrealized_pnl']:+.2f}",
+            },
+        )
 
     if tv_signal is not None:
         rows.insert(
