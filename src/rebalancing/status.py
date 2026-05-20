@@ -80,7 +80,7 @@ def runtime_status_payload(runtime: RuntimeDecision) -> dict[str, Any]:
     target_exposure = sum(target.notional for target in decision.target_positions)
     leverage = current_exposure / account.equity if account.equity > 0 else 0.0
     tv_signal = latest_tradingview_alert()
-    events = tradingview_alert_events(limit=10) + runtime.events
+    events = tradingview_alert_events(limit=_env_int("ENGINE_STATUS_ALERT_EVENT_LIMIT", 200)) + runtime.events
 
     return {
         "source": "Binance live" if runtime.live_data else "Local fallback",
@@ -388,6 +388,13 @@ def _event(kind: str, message: str) -> dict[str, str]:
 def _env_float(name: str, default: float) -> float:
     try:
         return float(os.environ.get(name, default))
+    except ValueError:
+        return default
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
     except ValueError:
         return default
 
