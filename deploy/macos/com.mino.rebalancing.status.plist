@@ -20,6 +20,8 @@
   <dict>
     <key>PYTHONPATH</key>
     <string>/Users/myno-bot/Desktop/bot/src</string>
+    <key>DATABASE_URL</key>
+    <string>postgresql://rebalancing@127.0.0.1:5432/rebalancing_learning</string>
     <key>ENGINE_HOST</key>
     <string>127.0.0.1</string>
     <key>ENGINE_PORT</key>
