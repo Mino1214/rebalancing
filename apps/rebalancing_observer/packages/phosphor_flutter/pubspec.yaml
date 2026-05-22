@@ -1,0 +1,11 @@
+name: phosphor_flutter
+description: Local compatibility shim for the observer app icon set.
+version: 0.0.1
+publish_to: 'none'
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter

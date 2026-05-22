@@ -11,3 +11,8 @@ cd "$PROJECT_ROOT"
 
 cd "$PROJECT_ROOT/workers/tradingview-webhook"
 "$NODE_BIN" "$NPM_CLI" run check
+
+if [[ -x "$HOME/development/flutter/bin/flutter" ]]; then
+  cd "$PROJECT_ROOT/apps/rebalancing_observer"
+  "$HOME/development/flutter/bin/flutter" test
+fi
