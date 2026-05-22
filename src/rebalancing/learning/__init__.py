@@ -15,6 +15,7 @@ from .params import (
     load_active_bot_params,
     prepare_param_update,
 )
+from .loop import current_stage, maybe_promote_stage, run_learning_cycle, run_scheduler, update_stage
 
 __all__ = [
     "DIAGNOSIS_SYSTEM_PROMPT",
@@ -30,4 +31,9 @@ __all__ = [
     "engine_config_from_params",
     "load_active_bot_params",
     "prepare_param_update",
+    "current_stage",
+    "maybe_promote_stage",
+    "run_learning_cycle",
+    "run_scheduler",
+    "update_stage",
 ]
