@@ -58,7 +58,7 @@ def build_diagnosis_prompt(window: int = 100, *, mode: str | None = None) -> str
 
 
 def call_diagnosis(prompt: str) -> str | None:
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = _anthropic_api_key()
     if not api_key:
         logger.warning("Claude diagnosis skipped: ANTHROPIC_API_KEY is not set")
         return None
@@ -563,6 +563,22 @@ def _safe_error_body(exc: HTTPError) -> str:
         return exc.read().decode("utf-8")[:500]
     except Exception:
         return ""
+
+
+def _anthropic_api_key() -> str | None:
+    value = os.environ.get("ANTHROPIC_API_KEY")
+    if value:
+        return value.strip()
+
+    path = os.environ.get("ANTHROPIC_API_KEY_FILE")
+    if not path:
+        return None
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return handle.read().strip() or None
+    except OSError as exc:
+        logger.warning("Claude diagnosis API key file unavailable: %s", exc)
+        return None
 
 
 def _env_int(name: str, default: int) -> int:

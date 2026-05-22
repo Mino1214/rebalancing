@@ -139,6 +139,7 @@ class StatusHandler(BaseHTTPRequestHandler):
 def run() -> None:
     host = os.environ.get("ENGINE_HOST", "127.0.0.1")
     port = int(os.environ.get("ENGINE_PORT", "8788"))
+    _start_learning_scheduler()
     server = ThreadingHTTPServer((host, port), StatusHandler)
     print(f"status API listening on http://{host}:{port}")
     server.serve_forever()
@@ -166,6 +167,28 @@ def _process_paper_alert(payload: dict) -> None:
     except Exception as exc:
         if os.environ.get("ENGINE_ACCESS_LOG", "").lower() == "true":
             print(f"paper processing failed: {exc}")
+
+
+def _start_learning_scheduler() -> None:
+    if os.environ.get("LEARNING_BACKGROUND_ENABLED", "").lower() != "true":
+        return
+
+    def run_background() -> None:
+        from .learning.loop import run_scheduler
+
+        interval = _env_int("LEARNING_INTERVAL_SECONDS", 600)
+        window = _env_int("LEARNING_WINDOW", 100)
+        mode = os.environ.get("LEARNING_MODE", "paper") or None
+        run_scheduler(window=window, mode=mode, interval_seconds=interval)
+
+    Thread(target=run_background, daemon=True).start()
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
 
 
 if __name__ == "__main__":

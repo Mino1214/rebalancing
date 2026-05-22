@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 
 from rebalancing.learning.diagnosis import (
+    _anthropic_api_key,
     build_diagnosis_prompt,
     parse_diagnosis,
     save_evaluation,
@@ -81,6 +82,11 @@ class LearningDiagnosisTest(unittest.TestCase):
         self.assertEqual(evaluation_id, 7)
         self.assertIn("INSERT INTO evaluations", connection.cursor_obj.statements[0])
         self.assertIn("window_size", connection.cursor_obj.statements[0])
+
+    def test_anthropic_api_key_can_load_from_file(self) -> None:
+        with patch.dict("os.environ", {"ANTHROPIC_API_KEY_FILE": "/tmp/key-file"}, clear=True):
+            with patch("builtins.open", unittest.mock.mock_open(read_data=" secret\n")):
+                self.assertEqual(_anthropic_api_key(), "secret")
 
 
 def _record(identifier: int, regime: str, should_rebalance: bool, pnl: float) -> dict:

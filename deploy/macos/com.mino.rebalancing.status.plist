@@ -22,6 +22,20 @@
     <string>/Users/myno-bot/Desktop/bot/src</string>
     <key>DATABASE_URL</key>
     <string>postgresql://rebalancing@127.0.0.1:5432/rebalancing_learning</string>
+    <key>ANTHROPIC_API_KEY_FILE</key>
+    <string>/Users/myno-bot/Desktop/bot/.state/anthropic_api_key</string>
+    <key>ANTHROPIC_MODEL</key>
+    <string>claude-sonnet-4-6</string>
+    <key>LEARNING_BACKGROUND_ENABLED</key>
+    <string>true</string>
+    <key>LEARNING_INTERVAL_SECONDS</key>
+    <string>600</string>
+    <key>LEARNING_WINDOW</key>
+    <string>100</string>
+    <key>LEARNING_MODE</key>
+    <string>paper</string>
+    <key>LEARNING_PARAM_APPLY_POLICY</key>
+    <string>auto</string>
     <key>ENGINE_HOST</key>
     <string>127.0.0.1</string>
     <key>ENGINE_PORT</key>
