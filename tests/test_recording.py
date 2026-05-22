@@ -23,7 +23,9 @@ from rebalancing.recording import (
     _decision_record_from_tradingview,
     _execution_row,
     _planned_order_row,
+    _trade_result_row,
     record_decision,
+    record_paper_decision,
 )
 from rebalancing.tradingview import TradingViewAlert, finalize_tradingview_alert
 
@@ -97,6 +99,51 @@ class RecordingTest(unittest.TestCase):
         self.assertEqual(str(row["qty"]), "2")
         self.assertEqual(str(row["price"]), "50")
         self.assertEqual(str(row["fee"]), "0.04")
+
+    def test_trade_result_row_records_realized_paper_pnl(self) -> None:
+        row = _trade_result_row(
+            {
+                "time": "2026-05-23T00:00:00+00:00",
+                "symbol": "BTCUSDT",
+                "action": "CLOSE",
+                "net_pnl": 9.5,
+            }
+        )
+
+        self.assertIsNotNone(row)
+        assert row is not None
+        self.assertEqual(row["symbol"], "BTCUSDT")
+        self.assertEqual(str(row["realized_pnl"]), "9.5")
+        self.assertEqual(row["status"], "realized")
+
+    def test_record_paper_decision_writes_trade_results_for_closes(self) -> None:
+        connection = _FakeConnection()
+        alert, server_decision = finalize_tradingview_alert(_alert())
+        with patch(
+            "rebalancing.recording._load_driver",
+            return_value=(lambda _dsn: connection, "postgres://test"),
+        ):
+            decision_id = record_paper_decision(
+                alert=alert,
+                decision=server_decision,
+                snapshot={},
+                planned_orders=[],
+                executions=[
+                    {
+                        "time": "2026-05-23T00:00:00+00:00",
+                        "symbol": "BTCUSDT",
+                        "action": "CLOSE",
+                        "side": "LONG",
+                        "notional": 100,
+                        "price": 110,
+                        "net_pnl": 9.5,
+                    }
+                ],
+            )
+
+        self.assertEqual(decision_id, 42)
+        self.assertTrue(any("INSERT INTO executions" in statement for statement in connection.cursor_obj.statements))
+        self.assertTrue(any("INSERT INTO trade_results" in statement for statement in connection.cursor_obj.statements))
 
     def test_tradingview_decision_maps_to_engine_regime(self) -> None:
         alert, server_decision = finalize_tradingview_alert(_alert())

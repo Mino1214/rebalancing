@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from rebalancing.learning.diagnosis import (
     _anthropic_api_key,
+    _diagnosis_response_text,
     build_diagnosis_prompt,
     parse_diagnosis,
     save_evaluation,
@@ -87,6 +88,34 @@ class LearningDiagnosisTest(unittest.TestCase):
         with patch.dict("os.environ", {"ANTHROPIC_API_KEY_FILE": "/tmp/key-file"}, clear=True):
             with patch("builtins.open", unittest.mock.mock_open(read_data=" secret\n")):
                 self.assertEqual(_anthropic_api_key(), "secret")
+
+    def test_diagnosis_response_text_prefers_tool_use(self) -> None:
+        raw = _diagnosis_response_text(
+            {
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "name": "record_diagnosis",
+                        "input": {
+                            "summary": "ok",
+                            "findings": [],
+                            "param_suggestions": [],
+                            "pine_suggestions": [],
+                            "stage_eval": {
+                                "current_stage": "BABY",
+                                "ready_for_promotion": False,
+                                "reason": "not enough data",
+                            },
+                        },
+                    }
+                ]
+            }
+        )
+
+        diagnosis = parse_diagnosis(raw)
+        self.assertIsNotNone(diagnosis)
+        assert diagnosis is not None
+        self.assertEqual(diagnosis["summary"], "ok")
 
 
 def _record(identifier: int, regime: str, should_rebalance: bool, pnl: float) -> dict:

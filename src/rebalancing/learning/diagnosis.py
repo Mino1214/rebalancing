@@ -30,6 +30,69 @@ DIAGNOSIS_SCHEMA_HINT = {
     "stage_eval": {"current_stage": "BABY|JUNIOR|PRO", "ready_for_promotion": False, "reason": "..."},
 }
 
+DIAGNOSIS_TOOL = {
+    "name": "record_diagnosis",
+    "description": "Record one structured diagnosis for the rebalancing bot.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string"},
+            "findings": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "issue": {"type": "string"},
+                        "evidence": {"type": "string"},
+                        "severity": {"type": "string", "enum": ["low", "med", "high"]},
+                    },
+                    "required": ["issue", "evidence", "severity"],
+                    "additionalProperties": False,
+                },
+            },
+            "param_suggestions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "current": {"type": ["number", "string", "boolean", "null"]},
+                        "suggested": {"type": ["number", "string", "boolean", "null"]},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["name", "current", "suggested", "reason"],
+                    "additionalProperties": False,
+                },
+            },
+            "pine_suggestions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "target": {"type": "string"},
+                        "suggestion": {"type": "string"},
+                        "reason": {"type": "string"},
+                    },
+                    "required": ["target", "suggestion", "reason"],
+                    "additionalProperties": False,
+                },
+            },
+            "stage_eval": {
+                "type": "object",
+                "properties": {
+                    "current_stage": {"type": "string", "enum": ["BABY", "JUNIOR", "PRO"]},
+                    "ready_for_promotion": {"type": "boolean"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["current_stage", "ready_for_promotion", "reason"],
+                "additionalProperties": False,
+            },
+        },
+        "required": ["summary", "findings", "param_suggestions", "pine_suggestions", "stage_eval"],
+        "additionalProperties": False,
+    },
+}
+
 
 def build_diagnosis_prompt(window: int = 100, *, mode: str | None = None) -> str:
     records = load_recent_records(window=window, mode=mode)
@@ -72,6 +135,8 @@ def call_diagnosis(prompt: str) -> str | None:
         "max_tokens": max_tokens,
         "system": DIAGNOSIS_SYSTEM_PROMPT,
         "messages": [{"role": "user", "content": prompt}],
+        "tools": [DIAGNOSIS_TOOL],
+        "tool_choice": {"type": "tool", "name": "record_diagnosis"},
     }
     request = Request(
         f"{base_url}/v1/messages",
@@ -95,15 +160,7 @@ def call_diagnosis(prompt: str) -> str | None:
         logger.warning("Claude diagnosis API failed: %s", exc)
         return None
 
-    text_blocks = [
-        str(block.get("text", ""))
-        for block in payload.get("content", [])
-        if isinstance(block, Mapping) and block.get("type") == "text"
-    ]
-    if not text_blocks:
-        logger.warning("Claude diagnosis API returned no text content")
-        return None
-    return "\n".join(text_blocks).strip()
+    return _diagnosis_response_text(payload)
 
 
 def parse_diagnosis(raw: str | Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -563,6 +620,27 @@ def _safe_error_body(exc: HTTPError) -> str:
         return exc.read().decode("utf-8")[:500]
     except Exception:
         return ""
+
+
+def _diagnosis_response_text(payload: Mapping[str, Any]) -> str | None:
+    for block in payload.get("content", []):
+        if (
+            isinstance(block, Mapping)
+            and block.get("type") == "tool_use"
+            and block.get("name") == "record_diagnosis"
+            and isinstance(block.get("input"), Mapping)
+        ):
+            return json.dumps(block["input"], ensure_ascii=False, separators=(",", ":"))
+
+    text_blocks = [
+        str(block.get("text", ""))
+        for block in payload.get("content", [])
+        if isinstance(block, Mapping) and block.get("type") == "text"
+    ]
+    if not text_blocks:
+        logger.warning("Claude diagnosis API returned no diagnosis content")
+        return None
+    return "\n".join(text_blocks).strip()
 
 
 def _anthropic_api_key() -> str | None:

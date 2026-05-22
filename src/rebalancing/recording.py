@@ -153,6 +153,7 @@ def _insert_decision_record(
                     ),
                 )
             _insert_executions(conn, decision_id, executions, cursor=cursor)
+            _insert_trade_results(conn, decision_id, executions, cursor=cursor)
             return decision_id
 
     return _with_connection(write)
@@ -186,6 +187,46 @@ def _insert_executions(
                     row["price"],
                     row["fee"],
                     row["ts"],
+                ),
+            )
+
+    if cursor is not None:
+        write(cursor)
+        return
+
+    with conn.cursor() as active_cursor:
+        write(active_cursor)
+
+
+def _insert_trade_results(
+    conn: Any,
+    decision_id: int,
+    executions: Sequence[BinanceOrderResult | Mapping[str, Any]],
+    *,
+    cursor: Any | None = None,
+) -> None:
+    if not executions:
+        return
+
+    def write(active_cursor: Any) -> None:
+        for execution in executions:
+            row = _trade_result_row(execution)
+            if row is None:
+                continue
+            active_cursor.execute(
+                """
+                INSERT INTO trade_results (
+                    decision_id, symbol, realized_pnl, opened_at, closed_at, status
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    decision_id,
+                    row["symbol"],
+                    row["realized_pnl"],
+                    row["opened_at"],
+                    row["closed_at"],
+                    row["status"],
                 ),
             )
 
@@ -301,6 +342,35 @@ def _execution_row(execution: BinanceOrderResult | Mapping[str, Any]) -> dict[st
         "price": price,
         "fee": _numeric(fee_value),
         "ts": _parse_timestamp(execution.get("time")),
+    }
+
+
+def _trade_result_row(execution: BinanceOrderResult | Mapping[str, Any]) -> dict[str, Any] | None:
+    if isinstance(execution, BinanceOrderResult) or not isinstance(execution, Mapping):
+        return None
+
+    action = str(execution.get("action") or "").upper()
+    if action not in {"CLOSE", "REDUCE"}:
+        return None
+
+    symbol = str(execution.get("symbol") or "")
+    if not symbol:
+        return None
+
+    realized = _numeric(execution.get("net_pnl"))
+    if realized is None:
+        gross = _numeric(execution.get("gross_pnl")) or Decimal("0")
+        fee = _numeric(execution.get("fee")) or Decimal("0")
+        slippage = _numeric(execution.get("slippage")) or Decimal("0")
+        cost = _numeric(execution.get("cost"))
+        realized = gross - (cost if cost is not None else fee + slippage)
+
+    return {
+        "symbol": symbol,
+        "realized_pnl": realized,
+        "opened_at": _parse_optional_timestamp(execution.get("opened_at")),
+        "closed_at": _parse_timestamp(execution.get("time")),
+        "status": "realized",
     }
 
 
@@ -433,3 +503,9 @@ def _parse_timestamp(value: Any) -> datetime:
         except ValueError:
             pass
     return datetime.now(timezone.utc)
+
+
+def _parse_optional_timestamp(value: Any) -> datetime | None:
+    if value is None or value == "":
+        return None
+    return _parse_timestamp(value)
