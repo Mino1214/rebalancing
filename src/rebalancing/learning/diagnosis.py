@@ -292,7 +292,13 @@ def summarize_records(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
 
 def current_bot_params() -> dict[str, Any]:
-    return asdict(EngineConfig())
+    try:
+        from rebalancing.learning.params import active_engine_config
+
+        return asdict(active_engine_config())
+    except Exception as exc:
+        logger.warning("Active bot params unavailable for diagnosis prompt: %s", exc)
+        return asdict(EngineConfig())
 
 
 def _insert_evaluation(

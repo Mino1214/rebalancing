@@ -8,6 +8,7 @@ from typing import Any
 
 from .binance import BinanceCredentials, BinanceFuturesClient, live_trading_enabled
 from .engine import RebalancingEngine
+from .learning.params import active_engine_config
 from .market_internals import MarketInternals, apply_market_cap_dominance, build_market_internals
 from .models import (
     AccountSnapshot,
@@ -48,7 +49,7 @@ def build_runtime_decision(*, force_rebalance: bool = False, record_mode: str | 
     events.extend(_event("INTERNALS", message) for message in internals.messages[:20])
     btc = _btc_snapshot(client, events)
 
-    decision = RebalancingEngine().evaluate(
+    decision = RebalancingEngine(active_engine_config()).evaluate(
         now=now,
         state=EngineState(),
         account=account,
