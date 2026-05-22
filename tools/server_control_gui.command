@@ -11,7 +11,10 @@ PORT="${ENGINE_PORT:-8788}"
 HOST="${ENGINE_HOST:-127.0.0.1}"
 LOCAL_URL="http://$HOST:$PORT"
 TUNNEL_URL="https://engine.medicalnewshub.info"
-PYTHON_BIN="${PYTHON_BIN:-$(command -v python3 || command -v python)}"
+PYTHON_BIN="${PYTHON_BIN:-$PROJECT_ROOT/.venv/bin/python}"
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  PYTHON_BIN="$(command -v python3 || command -v python)"
+fi
 
 mkdir -p "$STATE_DIR"
 
