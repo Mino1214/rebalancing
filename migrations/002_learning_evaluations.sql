@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS evaluations (
     id BIGSERIAL PRIMARY KEY,
     ts TIMESTAMPTZ NOT NULL DEFAULT now(),
-    window INTEGER NOT NULL,
+    window_size INTEGER NOT NULL,
     summary TEXT NOT NULL DEFAULT '',
     findings JSONB NOT NULL DEFAULT '[]'::jsonb,
     param_suggestions JSONB NOT NULL DEFAULT '[]'::jsonb,

@@ -306,7 +306,7 @@ def _insert_evaluation(
             cursor.execute(
                 """
                 INSERT INTO evaluations (
-                    window, summary, findings, param_suggestions,
+                    window_size, summary, findings, param_suggestions,
                     pine_suggestions, stage_eval, raw, applied
                 )
                 VALUES (

@@ -80,6 +80,7 @@ class LearningDiagnosisTest(unittest.TestCase):
 
         self.assertEqual(evaluation_id, 7)
         self.assertIn("INSERT INTO evaluations", connection.cursor_obj.statements[0])
+        self.assertIn("window_size", connection.cursor_obj.statements[0])
 
 
 def _record(identifier: int, regime: str, should_rebalance: bool, pnl: float) -> dict:
