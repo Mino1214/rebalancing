@@ -1555,6 +1555,7 @@ class EngineResultScreen extends StatelessWidget {
 List<Widget> engineResultSections(EngineSnapshot snapshot) {
   final signal = snapshot.tradingViewSignal;
   final rebalance = snapshot.paperRebalance;
+  final learning = snapshot.learning;
 
   return [
     if (rebalance != null)
@@ -1637,6 +1638,31 @@ List<Widget> engineResultSections(EngineSnapshot snapshot) {
           '주문',
           '${snapshot.orders.length}개',
           riskLabel(snapshot.riskState),
+        ),
+      ],
+    ),
+    DetailSection(
+      title: 'Learning',
+      rows: [
+        DetailRowData(
+          '단계',
+          learningStageLabel(learning.stage),
+          learning.runCount == 0 ? '대기' : 'run ${learning.runCount}',
+        ),
+        DetailRowData(
+          '최근 실행',
+          learningStatusLabel(learning.latestRunStatus),
+          learningRunMeta(learning),
+        ),
+        DetailRowData(
+          '평가',
+          '${learning.evaluationCount}회',
+          compactLearningSummary(learning),
+        ),
+        DetailRowData(
+          '활성 파라미터',
+          learningActiveVersionLabel(learning),
+          learningParamSummary(learning),
         ),
       ],
     ),
@@ -2086,6 +2112,7 @@ class EngineSnapshot {
     required this.tradingViewSignal,
     required this.paperRebalance,
     required this.marketInternals,
+    required this.learning,
     required this.positions,
     required this.orders,
     required this.events,
@@ -2110,6 +2137,7 @@ class EngineSnapshot {
   final TradingViewSignal? tradingViewSignal;
   final PaperRebalanceView? paperRebalance;
   final MarketInternalsView marketInternals;
+  final LearningView learning;
   final List<PositionView> positions;
   final List<OrderView> orders;
   final List<EventView> events;
@@ -2153,6 +2181,7 @@ class EngineSnapshot {
       ),
       marketInternals: MarketInternalsView.fromJson(
           json['market_internals'] ?? json['marketInternals']),
+      learning: LearningView.fromJson(json['learning']),
       positions: positions,
       orders: orders,
       events: events,
@@ -2232,6 +2261,22 @@ class EngineSnapshot {
         advanceCount: 128,
         declineCount: 72,
       ),
+      learning: const LearningView(
+        stage: 'BABY',
+        runCount: 1,
+        evaluationCount: 1,
+        paramVersionCount: 1,
+        tradeResultCount: 0,
+        latestRunStatus: 'ok',
+        latestRunTrigger: 'manual',
+        latestRunTime: '2026-05-23T01:20:00+09:00',
+        latestEvaluationSummary: '페이퍼 기록 기준으로 횡보장 진입 민감도를 낮춤',
+        latestEvaluationTime: '2026-05-23T01:20:00+09:00',
+        activeParamVersion: 1,
+        rangeTargetLeverage: 0.5,
+        confirmationCandles: 2,
+        minNeutralHours: 6,
+      ),
       positions: const [],
       orders: const [],
       events: const [
@@ -2276,6 +2321,7 @@ class EngineSnapshot {
       tradingViewSignal: tradingViewSignal,
       paperRebalance: paperRebalance,
       marketInternals: marketInternals,
+      learning: learning,
       positions: positions,
       orders: orders,
       events: events,
@@ -2480,6 +2526,83 @@ class MarketInternalsView {
   }
 }
 
+class LearningView {
+  const LearningView({
+    required this.stage,
+    required this.runCount,
+    required this.evaluationCount,
+    required this.paramVersionCount,
+    required this.tradeResultCount,
+    required this.latestRunStatus,
+    required this.latestRunTrigger,
+    required this.latestRunTime,
+    required this.latestEvaluationSummary,
+    required this.latestEvaluationTime,
+    this.activeParamVersion,
+    this.rangeTargetLeverage,
+    this.confirmationCandles,
+    this.minNeutralHours,
+  });
+
+  final String stage;
+  final int runCount;
+  final int evaluationCount;
+  final int paramVersionCount;
+  final int tradeResultCount;
+  final String latestRunStatus;
+  final String latestRunTrigger;
+  final String latestRunTime;
+  final String latestEvaluationSummary;
+  final String latestEvaluationTime;
+  final int? activeParamVersion;
+  final double? rangeTargetLeverage;
+  final int? confirmationCandles;
+  final double? minNeutralHours;
+
+  factory LearningView.fromJson(Object? raw) {
+    final json =
+        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    final latestRunRaw = json['latest_run'] ?? json['latestRun'];
+    final latestRun = latestRunRaw is Map
+        ? Map<String, dynamic>.from(latestRunRaw)
+        : <String, dynamic>{};
+    final latestEvaluationRaw =
+        json['latest_evaluation'] ?? json['latestEvaluation'];
+    final latestEvaluation = latestEvaluationRaw is Map
+        ? Map<String, dynamic>.from(latestEvaluationRaw)
+        : <String, dynamic>{};
+    final activeParamsRaw = json['active_params'] ?? json['activeParams'];
+    final activeParams = activeParamsRaw is Map
+        ? Map<String, dynamic>.from(activeParamsRaw)
+        : <String, dynamic>{};
+
+    return LearningView(
+      stage: (json['stage'] ?? 'BABY').toString(),
+      runCount: toInt(json['run_count'] ?? json['runCount']),
+      evaluationCount:
+          toInt(json['evaluation_count'] ?? json['evaluationCount']),
+      paramVersionCount:
+          toInt(json['param_version_count'] ?? json['paramVersionCount']),
+      tradeResultCount:
+          toInt(json['trade_result_count'] ?? json['tradeResultCount']),
+      latestRunStatus: (latestRun['status'] ?? '').toString(),
+      latestRunTrigger: (latestRun['trigger'] ?? '').toString(),
+      latestRunTime: (latestRun['ts'] ?? latestRun['time'] ?? '').toString(),
+      latestEvaluationSummary: (latestEvaluation['summary'] ?? '').toString(),
+      latestEvaluationTime:
+          (latestEvaluation['ts'] ?? latestEvaluation['time'] ?? '').toString(),
+      activeParamVersion: toNullableInt(activeParams['version']),
+      rangeTargetLeverage: toNullableDouble(
+          activeParams['range_target_leverage'] ??
+              activeParams['rangeTargetLeverage']),
+      confirmationCandles: toNullableInt(activeParams['confirmation_candles'] ??
+          activeParams['confirmationCandles']),
+      minNeutralHours: toNullableDouble(
+          activeParams['min_neutral_hours'] ?? activeParams['minNeutralHours']),
+    );
+  }
+}
+
 class PositionView {
   const PositionView({
     required this.symbol,
@@ -2634,6 +2757,7 @@ class WatchItem {
 }
 
 List<WatchItem> summaryItems(EngineSnapshot snapshot) {
+  final learning = snapshot.learning;
   return [
     WatchItem(
       symbol: '레짐',
@@ -2645,6 +2769,16 @@ List<WatchItem> summaryItems(EngineSnapshot snapshot) {
       accent: regimeColor(snapshot.regime),
       marker: 'R',
       meta: '현재 판단',
+    ),
+    WatchItem(
+      symbol: '학습',
+      title: learningStageLabel(learning.stage),
+      value: learningStatusLabel(learning.latestRunStatus),
+      change: 'Eval ${learning.evaluationCount}',
+      changePct: learningActiveVersionLabel(learning),
+      accent: learningColor(learning),
+      marker: 'L',
+      meta: compactLearningSummary(learning),
     ),
     WatchItem(
       symbol: '자산',
@@ -2768,7 +2902,7 @@ List<WatchItem> orderItems(EngineSnapshot snapshot) {
 
 List<WatchItem> marketItems(EngineSnapshot snapshot) {
   final pinnedSymbols = {'INTERNALS', 'STABLE.D', 'TOP10.D'};
-  final hiddenSymbols = {'REGIME', 'EQUITY', 'RISK', 'LEVERAGE'};
+  final hiddenSymbols = {'REGIME', 'EQUITY', 'RISK', 'LEVERAGE', 'LEARNING'};
   final pinned = snapshot.watchItems
       .where((item) => pinnedSymbols.contains(item.symbol))
       .toList(growable: false);
@@ -2797,6 +2931,7 @@ List<WatchItem> marketItems(EngineSnapshot snapshot) {
 }
 
 List<WatchItem> projectProgressItems(EngineSnapshot snapshot) {
+  final learning = snapshot.learning;
   return [
     WatchItem(
       symbol: '웹훅',
@@ -2817,6 +2952,16 @@ List<WatchItem> projectProgressItems(EngineSnapshot snapshot) {
       accent: regimeColor(snapshot.regime),
       marker: 'S',
       meta: snapshot.marketBias,
+    ),
+    WatchItem(
+      symbol: '학습',
+      title: 'Claude 평가와 파라미터 조정',
+      value: learningStatusLabel(learning.latestRunStatus),
+      change: 'Eval ${learning.evaluationCount}',
+      changePct: learningActiveVersionLabel(learning),
+      accent: learningColor(learning),
+      marker: 'L',
+      meta: compactLearningSummary(learning),
     ),
     WatchItem(
       symbol: '앱',
@@ -3540,6 +3685,81 @@ String sourceLabel(String source) {
   };
 }
 
+String learningStageLabel(String stage) {
+  return switch (stage.toUpperCase()) {
+    'BABY' => 'BABY 단계',
+    'JUNIOR' => 'JUNIOR 단계',
+    'SENIOR' => 'SENIOR 단계',
+    _ => stage.isEmpty ? 'BABY 단계' : stage,
+  };
+}
+
+String learningStatusLabel(String status) {
+  final normalized = status.toLowerCase();
+  return switch (normalized) {
+    '' => '대기',
+    'ok' => '정상',
+    'diagnosis_failed' => '진단 실패',
+    'failed' || 'error' => '오류',
+    'running' => '실행중',
+    _ => status,
+  };
+}
+
+String learningActiveVersionLabel(LearningView learning) {
+  final version = learning.activeParamVersion;
+  return version == null ? 'v-' : 'v$version';
+}
+
+String learningRunMeta(LearningView learning) {
+  final parts = <String>[];
+  if (learning.latestRunTime.isNotEmpty) {
+    parts.add(eventMinuteLabel(learning.latestRunTime));
+  }
+  if (learning.latestRunTrigger.isNotEmpty) {
+    parts.add(learning.latestRunTrigger);
+  }
+  return parts.isEmpty ? '대기' : parts.join(' · ');
+}
+
+String learningParamSummary(LearningView learning) {
+  final parts = <String>[];
+  final rangeTarget = learning.rangeTargetLeverage;
+  if (rangeTarget != null) {
+    parts.add('range ${rangeTarget.toStringAsFixed(2)}x');
+  }
+  final confirmation = learning.confirmationCandles;
+  if (confirmation != null) {
+    parts.add('confirm $confirmation');
+  }
+  final neutralHours = learning.minNeutralHours;
+  if (neutralHours != null) {
+    parts.add('neutral ${neutralHours.toStringAsFixed(0)}h');
+  }
+  return parts.isEmpty ? '파라미터 대기' : parts.join(' · ');
+}
+
+String compactLearningSummary(LearningView learning) {
+  final text = learning.latestEvaluationSummary.trim();
+  if (text.isEmpty) {
+    return learning.evaluationCount == 0
+        ? '평가 대기'
+        : '평가 ${learning.evaluationCount}회';
+  }
+  if (text.characters.length <= 28) return text;
+  return '${text.characters.take(28).join()}...';
+}
+
+Color learningColor(LearningView learning) {
+  final status = learning.latestRunStatus.toLowerCase();
+  if (status == 'ok') return const Color(0xFF2F8F75);
+  if (status.contains('fail') || status.contains('error')) {
+    return const Color(0xFFC8404A);
+  }
+  if (status.isEmpty) return const Color(0xFF787B86);
+  return const Color(0xFFC08A17);
+}
+
 String decisionLabel(EngineSnapshot snapshot) {
   return switch (snapshot.regime) {
     'TOP10_LONG' => '상위10 롱',
@@ -3720,6 +3940,7 @@ IconData watchIcon(String symbol) {
   if (s.contains('플랫')) return PhosphorIconsRegular.minus;
   if (s.contains('주문')) return PhosphorIconsRegular.receipt;
   if (s.contains('목표')) return PhosphorIconsRegular.target;
+  if (s.contains('학습')) return PhosphorIconsRegular.brain;
   if (s.contains('진입')) return PhosphorIconsRegular.arrowCircleUpRight;
   if (s.contains('리밸런싱')) return PhosphorIconsRegular.arrowsLeftRight;
   if (s.contains('청산')) return PhosphorIconsRegular.arrowCircleDownRight;

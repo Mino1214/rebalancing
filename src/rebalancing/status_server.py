@@ -15,6 +15,7 @@ from .signal_store import (
     record_tradingview_alert,
 )
 from .status import build_status_payload, payload_to_json
+from .learning.status import learning_status_payload
 from .tradingview import TradingViewAlertError
 
 
@@ -35,11 +36,15 @@ class StatusHandler(BaseHTTPRequestHandler):
                 self._json({"ok": False, "error": str(exc)}, status=500)
             return
 
+        if parsed.path == "/learning":
+            self._json(learning_status_payload())
+            return
+
         self._json({"ok": False, "error": "not_found"}, status=404)
 
     def do_HEAD(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path in {"/health", "/status"}:
+        if parsed.path in {"/health", "/status", "/learning"}:
             self.send_response(200)
             self._cors_headers()
             self.send_header("Cache-Control", "no-store")

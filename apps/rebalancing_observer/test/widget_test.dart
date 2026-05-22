@@ -4,6 +4,49 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rebalancing_observer/main.dart';
 
 void main() {
+  test('snapshot parses learning status payload', () {
+    final snapshot = EngineSnapshot.fromJson({
+      'source': 'Engine API',
+      'last_updated': '2026-05-23T01:20:00+09:00',
+      'regime': 'RANGE',
+      'market_bias': 'PAPER',
+      'mode': 'OBSERVE',
+      'risk_state': 'OK',
+      'market_internals': <String, Object?>{},
+      'positions': [],
+      'orders': [],
+      'events': [],
+      'watchlist': [],
+      'learning': {
+        'stage': 'BABY',
+        'run_count': 2,
+        'evaluation_count': 1,
+        'param_version_count': 1,
+        'trade_result_count': 3,
+        'latest_run': {
+          'status': 'ok',
+          'trigger': 'scheduler',
+          'ts': '2026-05-23T01:20:00+09:00',
+        },
+        'latest_evaluation': {
+          'summary': 'range 민감도 조정',
+          'ts': '2026-05-23T01:20:00+09:00',
+        },
+        'active_params': {
+          'version': 3,
+          'range_target_leverage': 0.5,
+          'confirmation_candles': 2,
+          'min_neutral_hours': 6,
+        },
+      },
+    });
+
+    expect(snapshot.learning.stage, 'BABY');
+    expect(snapshot.learning.evaluationCount, 1);
+    expect(snapshot.learning.activeParamVersion, 3);
+    expect(summaryItems(snapshot).map((item) => item.symbol), contains('학습'));
+  });
+
   testWidgets('observer app renders watchlist tabs in read-only mode',
       (tester) async {
     tester.view.physicalSize = const Size(1200, 1400);
@@ -19,6 +62,7 @@ void main() {
     expect(find.text('운영 요약'), findsOneWidget);
     expect(find.text('손익 추이'), findsOneWidget);
     expect(find.text('요약'), findsWidgets);
+    expect(find.text('학습'), findsWidgets);
     expect(find.text('포지션'), findsWidgets);
     expect(find.text('주문'), findsWidgets);
     expect(find.text('시장'), findsWidgets);
@@ -51,7 +95,10 @@ void main() {
     expect(find.text('엔진 결과'), findsOneWidget);
     expect(find.text('TradingView'), findsOneWidget);
     expect(find.text('Engine'), findsOneWidget);
+    expect(find.text('Learning'), findsOneWidget);
     expect(find.text('Market'), findsOneWidget);
+    await tester.drag(find.byType(ListView).last, const Offset(0, -700));
+    await tester.pumpAndSettle();
     expect(find.text('Signal Flags'), findsOneWidget);
     expect(find.text('주문'), findsWidgets);
     expect(find.textContaining('매수'), findsNothing);
