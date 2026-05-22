@@ -7,6 +7,7 @@ from pathlib import Path
 
 from rebalancing.signal_store import (
     expected_engine_webhook_token,
+    expected_tradingview_passphrase,
     record_tradingview_alert,
     recent_tradingview_alerts,
     tradingview_alert_events,
@@ -21,6 +22,8 @@ class SignalStoreTest(unittest.TestCase):
                 "ENGINE_WEBHOOK_TOKEN",
                 "ENGINE_WEBHOOK_TOKEN_FILE",
                 "ENGINE_TV_MAX_ALERT_AGE_SECONDS",
+                "TV_WEBHOOK_PASSPHRASE",
+                "TV_WEBHOOK_PASSPHRASE_FILE",
             )
         }
         os.environ["ENGINE_TV_MAX_ALERT_AGE_SECONDS"] = "0"
@@ -99,6 +102,15 @@ class SignalStoreTest(unittest.TestCase):
             os.environ["ENGINE_WEBHOOK_TOKEN_FILE"] = str(token_path)
 
             self.assertEqual(expected_engine_webhook_token(), "abc123")
+
+    def test_reads_tradingview_passphrase_from_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            token_path = Path(tempdir) / "tv-passphrase"
+            token_path.write_text("tv-secret\n", encoding="utf-8")
+            os.environ.pop("TV_WEBHOOK_PASSPHRASE", None)
+            os.environ["TV_WEBHOOK_PASSPHRASE_FILE"] = str(token_path)
+
+            self.assertEqual(expected_tradingview_passphrase(), "tv-secret")
 
 
 def _payload(signal_id: str) -> dict[str, object]:

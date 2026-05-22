@@ -30,6 +30,8 @@
     <string>*</string>
     <key>ENGINE_WEBHOOK_TOKEN_FILE</key>
     <string>/Users/myno-bot/Desktop/bot/.state/engine_webhook_token</string>
+    <key>TV_WEBHOOK_PASSPHRASE_FILE</key>
+    <string>/Users/myno-bot/Desktop/bot/.state/tradingview_webhook_passphrase</string>
     <key>ENGINE_SIGNAL_STORE_PATH</key>
     <string>/Users/myno-bot/Desktop/bot/.state/tradingview_alerts.json</string>
     <key>ENGINE_SIGNAL_STORE_MAX_RECORDS</key>

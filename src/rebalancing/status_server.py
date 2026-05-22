@@ -5,10 +5,15 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
+from typing import Any, Mapping
 from urllib.parse import urlparse
 
 from .paper import paper_trading_enabled, process_paper_alert
-from .signal_store import expected_engine_webhook_token, record_tradingview_alert
+from .signal_store import (
+    expected_engine_webhook_token,
+    expected_tradingview_passphrase,
+    record_tradingview_alert,
+)
 from .status import build_status_payload, payload_to_json
 from .tradingview import TradingViewAlertError
 
@@ -51,12 +56,11 @@ class StatusHandler(BaseHTTPRequestHandler):
             self._json({"ok": False, "error": "not_found"}, status=404)
             return
 
-        if not self._authorized():
-            self._json({"ok": False, "error": "unauthorized"}, status=401)
-            return
-
         try:
             payload = self._read_json_body()
+            if not self._authorized(payload):
+                self._json({"ok": False, "error": "unauthorized"}, status=401)
+                return
             record, duplicate = record_tradingview_alert(payload)
             if paper_trading_enabled() and not duplicate:
                 Thread(target=_process_paper_alert, args=(payload,), daemon=True).start()
@@ -109,12 +113,8 @@ class StatusHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Engine-Token")
 
-    def _authorized(self) -> bool:
-        expected = expected_engine_webhook_token()
-        if not expected:
-            return False
-        provided = self.headers.get("X-Engine-Token", "")
-        return hmac.compare_digest(provided, expected)
+    def _authorized(self, payload: Mapping[str, Any]) -> bool:
+        return webhook_authorized(self.headers, payload)
 
     def _read_json_body(self) -> dict:
         try:
@@ -142,6 +142,22 @@ def run() -> None:
     server = ThreadingHTTPServer((host, port), StatusHandler)
     print(f"status API listening on http://{host}:{port}")
     server.serve_forever()
+
+
+def webhook_authorized(headers: Mapping[str, str], payload: Mapping[str, Any]) -> bool:
+    expected_engine_token = expected_engine_webhook_token()
+    if expected_engine_token:
+        provided_engine_token = headers.get("X-Engine-Token", "")
+        if hmac.compare_digest(str(provided_engine_token), expected_engine_token):
+            return True
+
+    expected_passphrase = expected_tradingview_passphrase()
+    if expected_passphrase:
+        provided_passphrase = payload.get("passphrase", "")
+        if hmac.compare_digest(str(provided_passphrase), expected_passphrase):
+            return True
+
+    return False
 
 
 def _process_paper_alert(payload: dict) -> None:
