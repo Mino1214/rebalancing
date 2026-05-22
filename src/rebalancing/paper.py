@@ -11,6 +11,7 @@ from .binance import BinanceFuturesClient
 from .market_internals import apply_market_cap_dominance, build_market_internals
 from .models import MarketBias, MarketCandidate, OrderSide, PositionSide, TargetPosition, TradeMode
 from .portfolio import PortfolioBuilder
+from .recording import record_paper_decision
 from .tradingview import TradingViewAction, TradingViewAlert, TradingViewRegime, finalize_tradingview_alert
 
 
@@ -35,6 +36,7 @@ def process_paper_alert(payload: Mapping[str, Any], *, path: Path | None = None)
     position_symbols = {item["symbol"] for item in state.get("positions", [])}
     position_prices = _prices(client, position_symbols) if position_symbols else {}
     state = _mark_state(state, position_prices)
+    previous_trade_count = len(state.get("trades", []))
     equity_before = float(state["equity"])
     targets = _targets_for_alert(alert, equity_before, candidates, state=state)
     target_symbols = {target.symbol for target in targets}
@@ -48,6 +50,19 @@ def process_paper_alert(payload: Mapping[str, Any], *, path: Path | None = None)
         prices=prices,
     )
     _write_state(state_path, update)
+    record_paper_decision(
+        alert=alert,
+        decision=_decision,
+        snapshot={
+            "account": {"source": "paper", "equity": equity_before},
+            "positions": state.get("positions", []),
+            "candidates": candidates,
+            "btc": None,
+            "market_internals": {},
+        },
+        planned_orders=update.get("orders", []),
+        executions=update.get("trades", [])[previous_trade_count:],
+    )
     return paper_status_payload(path=state_path) or update
 
 

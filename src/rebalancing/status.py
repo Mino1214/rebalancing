@@ -19,6 +19,7 @@ from .models import (
     RebalanceDecision,
 )
 from .paper import paper_status_payload
+from .recording import record_decision, record_executions
 from .signal_store import latest_tradingview_alert, tradingview_alert_events
 
 
@@ -32,9 +33,10 @@ class RuntimeDecision:
     internals: MarketInternals
     events: list[dict[str, str]]
     live_data: bool
+    decision_record_id: int | None = None
 
 
-def build_runtime_decision(*, force_rebalance: bool = False) -> RuntimeDecision:
+def build_runtime_decision(*, force_rebalance: bool = False, record_mode: str | None = None) -> RuntimeDecision:
     now = datetime.now(timezone.utc)
     events: list[dict[str, str]] = []
     client = _binance_client(events)
@@ -56,6 +58,17 @@ def build_runtime_decision(*, force_rebalance: bool = False) -> RuntimeDecision:
         force_rebalance=force_rebalance,
     )
 
+    decision_record_id = record_decision(
+        decision,
+        {
+            "account": account,
+            "positions": positions,
+            "candidates": candidates,
+            "btc": btc,
+            "market_internals": internals,
+        },
+        mode=record_mode or ("live" if live_trading_enabled() else "paper"),
+    )
     events.extend(_decision_events(decision))
     return RuntimeDecision(
         client=client,
@@ -66,6 +79,7 @@ def build_runtime_decision(*, force_rebalance: bool = False) -> RuntimeDecision:
         internals=internals,
         events=events,
         live_data=any(event["kind"] == "BINANCE" for event in events),
+        decision_record_id=decision_record_id,
     )
 
 
@@ -129,9 +143,10 @@ def runtime_status_payload(runtime: RuntimeDecision) -> dict[str, Any]:
 
 
 def execute_runtime_orders(*, live: bool | None = None) -> dict[str, Any]:
-    runtime = build_runtime_decision(force_rebalance=True)
     live = live if live is not None else live_trading_enabled()
+    runtime = build_runtime_decision(force_rebalance=True, record_mode="live" if live else "paper")
     results = runtime.client.execute_planned_orders(runtime.decision.orders, live=live)
+    record_executions(runtime.decision_record_id, results)
     payload = runtime_status_payload(runtime)
     payload["execution_results"] = [
         {

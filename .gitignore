@@ -3,6 +3,9 @@
 .state/
 .cloudflared/
 .venv/
+.tools/
 node_modules/
 __pycache__/
 *.py[cod]
+.DS_Store
+*.egg-info/
