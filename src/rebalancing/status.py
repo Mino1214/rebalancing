@@ -89,10 +89,10 @@ def runtime_status_payload(runtime: RuntimeDecision) -> dict[str, Any]:
     leverage = current_exposure / equity if equity > 0 else 0.0
     tv_signal = latest_tradingview_alert()
     paper_events = paper["events"] if paper else []
-    events = (
-        tradingview_alert_events(limit=_env_int("ENGINE_STATUS_ALERT_EVENT_LIMIT", 200))
-        + paper_events
-        + runtime.events
+    events = _sorted_events(
+        tradingview_alert_events(limit=_env_int("ENGINE_STATUS_ALERT_EVENT_LIMIT", 200)),
+        paper_events,
+        runtime.events,
     )
 
     return {
@@ -100,6 +100,7 @@ def runtime_status_payload(runtime: RuntimeDecision) -> dict[str, Any]:
         "last_updated": decision.now.isoformat(),
         "tradingview_signal": tv_signal,
         "paper": paper,
+        "last_rebalance": paper["last_rebalance"] if paper else None,
         "regime": paper["regime"] if paper else decision.regime.value,
         "raw_regime": decision.raw_regime.value,
         "market_bias": paper["market_bias"] if paper else decision.market_bias.value,
@@ -255,6 +256,11 @@ def _watchlist_payload(runtime: RuntimeDecision, *, paper: dict[str, Any] | None
     equity = paper["equity"] if paper else account.equity
     current_exposure = paper["current_exposure"] if paper else sum(position.notional for position in runtime.positions)
     target_exposure = paper["target_exposure"] if paper else sum(target.notional for target in decision.target_positions)
+    display_score = _tv_signal_score(tv_signal) if paper is not None and tv_signal is not None else decision.regime_score
+    score_prefix = "TV Score" if paper is not None and tv_signal is not None else "Score"
+    regime_meta = "Paper trading state" if paper else "Trading engine state"
+    if paper is not None and tv_signal is not None:
+        regime_meta = f"Paper trading state · Engine {decision.regime_score:.1f}"
     top10 = sorted(
         runtime.candidates,
         key=lambda candidate: (
@@ -269,11 +275,11 @@ def _watchlist_payload(runtime: RuntimeDecision, *, paper: dict[str, Any] | None
             "symbol": "REGIME",
             "title": market_bias,
             "value": regime,
-            "change": f"Score {decision.regime_score:.1f}",
+            "change": f"{score_prefix} {display_score:.1f}",
             "change_pct": mode,
             "color": _regime_color(regime),
             "marker": "R",
-            "meta": "Paper trading state" if paper else "Trading engine state",
+            "meta": regime_meta,
         },
         {
             "symbol": "INTERNALS",
@@ -333,17 +339,21 @@ def _watchlist_payload(runtime: RuntimeDecision, *, paper: dict[str, Any] | None
         )
 
     if tv_signal is not None:
+        action = str(
+            tv_signal.get("decision_action")
+            or ("ENTER" if float(tv_signal.get("target_leverage") or 0) > 0 else "EXIT")
+        )
         rows.insert(
             1,
             {
                 "symbol": "TV.SIGNAL",
                 "title": f"{tv_signal.get('regime', '-')} · tf {tv_signal.get('tf') or '-'}",
                 "value": f"{float(tv_signal.get('target_leverage') or 0):.2f}x",
-                "change": "accepted",
+                "change": action.lower(),
                 "change_pct": str(tv_signal.get("signal_id", "-"))[:16],
                 "color": _regime_color(str(tv_signal.get("regime", "RANGE"))),
                 "marker": "T",
-                "meta": "TradingView webhook",
+                "meta": _tv_signal_reason(tv_signal),
             },
         )
 
@@ -361,6 +371,79 @@ def _watchlist_payload(runtime: RuntimeDecision, *, paper: dict[str, Any] | None
             }
         )
     return rows
+
+
+def _tv_signal_score(signal: dict[str, Any]) -> float:
+    if signal.get("score") is not None:
+        try:
+            return float(signal["score"])
+        except (TypeError, ValueError):
+            pass
+
+    score = 0.0
+    score += _bool_pair_score(signal, "btc_up", "btc_down", 40.0)
+    score += _bool_pair_score(signal, "total_up", "total_down", 25.0)
+    score += _bool_pair_score(signal, "total2_up", "total2_down", 25.0)
+
+    if _truthy(signal.get("btcd_down")):
+        score += 10.0
+    elif _truthy(signal.get("btcd_up")):
+        score -= 10.0
+
+    return score
+
+
+def _tv_signal_reason(signal: dict[str, Any]) -> str:
+    if signal.get("decision_reason"):
+        return str(signal["decision_reason"])
+
+    regime = str(signal.get("regime", "RANGE"))
+    if regime != "RANGE":
+        return "Server entry regime"
+
+    btc_up = _truthy(signal.get("btc_up"))
+    total_up = _truthy(signal.get("total_up"))
+    total2_up = _truthy(signal.get("total2_up"))
+    btcd_up = _truthy(signal.get("btcd_up"))
+    btcd_down = _truthy(signal.get("btcd_down"))
+
+    if btc_up and total_up and total2_up and btcd_up:
+        return "BTC.D up reduces TOP10 leverage"
+    if btc_up and total_up and total2_up and not btcd_down:
+        return "TOP10 needs BTC.D confirmation"
+    if btc_up and total_up and not total2_up and not btcd_up:
+        return "BTC/ETH needs BTC.D up"
+    if btc_up and total_up:
+        return "mixed long filters"
+
+    btc_down = _truthy(signal.get("btc_down"))
+    total_down = _truthy(signal.get("total_down"))
+    total2_down = _truthy(signal.get("total2_down"))
+    total3_weak = _truthy(signal.get("total3_weak"))
+    if btc_down and total_down and not total2_down:
+        return "SHORT needs TOTAL2 down"
+    if btc_down and total3_weak and not btcd_up:
+        return "ALT short needs BTC.D up"
+
+    return "Server range filters"
+
+
+def _bool_pair_score(signal: dict[str, Any], up_key: str, down_key: str, weight: float) -> float:
+    up = _truthy(signal.get(up_key))
+    down = _truthy(signal.get(down_key))
+    if up and not down:
+        return weight
+    if down and not up:
+        return -weight
+    return 0.0
+
+
+def _truthy(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() == "true"
+    return False
 
 
 def _decision_events(decision: RebalanceDecision) -> list[dict[str, str]]:
@@ -382,6 +465,12 @@ def _position_payload(position: Position) -> dict[str, Any]:
         "side": position.side.value,
         "notional": position.notional,
         "entry_price": position.entry_price,
+        "quantity": position.quantity,
+        "mark_price": position.mark_price,
+        "unrealized_pnl": position.unrealized_pnl,
+        "liquidation_price": position.liquidation_price,
+        "leverage": position.leverage,
+        "margin_type": position.margin_type,
     }
 
 
@@ -420,6 +509,21 @@ def _event(kind: str, message: str) -> dict[str, str]:
     }
 
 
+def _sorted_events(*groups: list[dict[str, str]]) -> list[dict[str, str]]:
+    events = [event for group in groups for event in group]
+    return sorted(events, key=_event_sort_key, reverse=True)
+
+
+def _event_sort_key(event: dict[str, str]) -> float:
+    raw = str(event.get("time") or "")
+    if raw.endswith("Z"):
+        raw = f"{raw[:-1]}+00:00"
+    try:
+        return datetime.fromisoformat(raw).timestamp()
+    except ValueError:
+        return 0.0
+
+
 def _env_float(name: str, default: float) -> float:
     try:
         return float(os.environ.get(name, default))
@@ -435,7 +539,7 @@ def _env_int(name: str, default: int) -> int:
 
 
 def _regime_color(regime: str) -> str:
-    if regime in {"BULL", "TOP10_LONG"}:
+    if regime in {"BULL", "TOP10_LONG", "BTC_ETH_LONG"}:
         return "2F8F75"
     if regime in {"BEAR", "SHORT_MODE", "ALT_WEAK_SHORT"}:
         return "C8404A"

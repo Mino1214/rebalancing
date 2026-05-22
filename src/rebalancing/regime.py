@@ -61,6 +61,7 @@ class RegimeDetector:
 
         if self._missing_market_internals(market):
             btc_direction = self._btc_direction(market.btc)
+            btc_score, btc_reasons = self._btc_only_score(market.btc)
             if btc_direction == TrendDirection.UP:
                 return Regime.BULL, MarketBias.BROAD_BULL, 40.0, [
                     "BTC-only fallback: BTC above EMA200, EMA20>EMA60 on 1D/4H, ADX confirmed"
@@ -69,7 +70,9 @@ class RegimeDetector:
                 return Regime.BEAR, MarketBias.BROAD_BEAR, -40.0, [
                     "BTC-only fallback: BTC below EMA200, EMA20<EMA60 on 1D/4H, ADX confirmed"
                 ]
-            return Regime.RANGE, MarketBias.RANGE, 0.0, ["BTC-only fallback: trend filters are mixed or ADX is too low"]
+            return Regime.RANGE, MarketBias.RANGE, btc_score, [
+                f"BTC-only fallback score {btc_score:.1f}: " + ", ".join(btc_reasons)
+            ]
 
         btc_direction = self._btc_direction(market.btc)
         total_direction = self._index_direction(market.total)
@@ -203,6 +206,45 @@ class RegimeDetector:
             return TrendDirection.DOWN
 
         return TrendDirection.MIXED
+
+    def _btc_only_score(self, btc: BtcMarketSnapshot) -> tuple[float, list[str]]:
+        score = 0.0
+        reasons: list[str] = []
+
+        if btc.close_1d > btc.ema200_1d:
+            score += 14.0
+            reasons.append("close above EMA200")
+        elif btc.close_1d < btc.ema200_1d:
+            score -= 14.0
+            reasons.append("close below EMA200")
+        else:
+            reasons.append("close at EMA200")
+
+        if btc.ema20_1d > btc.ema60_1d:
+            score += 13.0
+            reasons.append("1D EMA20 above EMA60")
+        elif btc.ema20_1d < btc.ema60_1d:
+            score -= 13.0
+            reasons.append("1D EMA20 below EMA60")
+        else:
+            reasons.append("1D EMA20 at EMA60")
+
+        if btc.ema20_4h > btc.ema60_4h:
+            score += 13.0
+            reasons.append("4H EMA20 above EMA60")
+        elif btc.ema20_4h < btc.ema60_4h:
+            score -= 13.0
+            reasons.append("4H EMA20 below EMA60")
+        else:
+            reasons.append("4H EMA20 at EMA60")
+
+        if btc.adx_1d < self.config.adx_threshold:
+            score *= 0.5
+            reasons.append(f"ADX {btc.adx_1d:.1f} below {self.config.adx_threshold:.1f}")
+        else:
+            reasons.append(f"ADX {btc.adx_1d:.1f} confirmed")
+
+        return score, reasons
 
     def _index_direction(
         self,

@@ -129,6 +129,38 @@ class RegimeDetectorTest(unittest.TestCase):
         self.assertEqual(bias, MarketBias.ALT_WEAK_BEAR)
         self.assertEqual(score, -100)
 
+    def test_btc_only_fallback_scores_mixed_filters(self) -> None:
+        detector = RegimeDetector()
+        snapshot = BtcMarketSnapshot(
+            close_1d=77_000,
+            ema20_1d=78_000,
+            ema60_1d=76_000,
+            ema200_1d=82_000,
+            ema20_4h=77_000,
+            ema60_4h=78_000,
+            adx_1d=24,
+        )
+
+        raw, bias, score, reasons = detector.raw_signal(CryptoMarketSnapshot(btc=snapshot))
+
+        self.assertEqual(raw, Regime.RANGE)
+        self.assertEqual(bias, MarketBias.RANGE)
+        self.assertEqual(score, -14)
+        self.assertIn("close below EMA200", reasons[0])
+        self.assertIn("1D EMA20 above EMA60", reasons[0])
+        self.assertIn("4H EMA20 below EMA60", reasons[0])
+
+    def test_btc_only_fallback_attenuates_low_adx_score(self) -> None:
+        detector = RegimeDetector()
+        snapshot = replace(bull_snapshot(), adx_1d=10)
+
+        raw, bias, score, reasons = detector.raw_signal(CryptoMarketSnapshot(btc=snapshot))
+
+        self.assertEqual(raw, Regime.RANGE)
+        self.assertEqual(bias, MarketBias.RANGE)
+        self.assertEqual(score, 20)
+        self.assertIn("ADX 10.0 below", reasons[0])
+
 
 if __name__ == "__main__":
     unittest.main()

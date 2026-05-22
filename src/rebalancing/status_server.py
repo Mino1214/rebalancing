@@ -78,6 +78,9 @@ class StatusHandler(BaseHTTPRequestHandler):
                 "signal_id": record["signal_id"],
                 "regime": record["regime"],
                 "target_leverage": record["target_leverage"],
+                "score": record.get("score"),
+                "decision_action": record.get("decision_action"),
+                "decision_reason": record.get("decision_reason"),
             },
             status=200 if duplicate else 202,
         )

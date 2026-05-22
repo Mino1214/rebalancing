@@ -45,7 +45,7 @@ Flutter 관전 전용 앱 방향은 [docs/flutter_app_direction.md](docs/flutter
 TradingView 웹훅 alert 보강안은 [docs/tradingview_alerts.md](docs/tradingview_alerts.md)에 정리했습니다.
 Cloudflare webhook receiver 방향과 Worker 골격은 [docs/cloudflare_webhook.md](docs/cloudflare_webhook.md), [workers/tradingview-webhook](workers/tradingview-webhook)에 정리했습니다.
 Cloudflare Tunnel로 개인 실행 엔진을 붙이는 방법은 [docs/cloudflare_tunnel.md](docs/cloudflare_tunnel.md)에 정리했습니다.
-운영 URL, 4시간봉 기준, 수신 테스트, Flutter 앱 실행법은 [docs/operation_endpoints.md](docs/operation_endpoints.md)에 정리했습니다.
+운영 URL, MTF 알림 기준, 수신 테스트, Flutter 앱 실행법은 [docs/operation_endpoints.md](docs/operation_endpoints.md)에 정리했습니다.
 
 ## 점수제 레짐
 
@@ -101,7 +101,7 @@ curl https://engine.medicalnewshub.info/status
 tools/server_control_gui.command
 ```
 
-이 GUI는 기본적으로 3,300 USDT 가상 계좌, 실주문 비활성화 상태로 `status_server`를 실행합니다. 버튼은 `Start Server`, `Stop Server`, `Restart Server`, `Open Status`, `Open Log`, `Refresh`를 제공합니다.
+이 GUI는 기본적으로 1,000 USDT 가상 계좌, 실주문 비활성화 상태로 `status_server`를 실행합니다. 버튼은 `Start Server`, `Stop Server`, `Restart Server`, `Open Status`, `Open Log`, `Refresh`를 제공합니다.
 
 ## Market Internal Engine
 
@@ -136,6 +136,17 @@ PYTHONPATH=src python -m rebalancing.execution --live
 ```
 
 실주문 전에는 Binance API 키를 새로 발급하고, 먼저 드라이런 응답의 `execution_results.response.params`를 확인하세요.
+
+## 페이퍼 안전장치
+
+페이퍼 트레이딩은 5분 알림이 반복되어도 같은 레짐/레버리지에서는 기본 60분 안에 후보군을 다시 갈아타지 않습니다. LONG/SHORT 반대 방향 신호가 들어오면 먼저 중립화하고 다음 신호에서 재진입하며, 초기자산 대비 손실이 `PAPER_BLOCK_NEW_ENTRIES_LOSS_PCT`를 넘으면 신규 진입을 막습니다.
+
+```bash
+export PAPER_MIN_REBALANCE_MINUTES=60
+export PAPER_BLOCK_NEW_ENTRIES_LOSS_PCT=-1.0  # 신규 진입 손실 차단 비활성화
+export ENGINE_TV_ALLOW_PROBE_ENTRIES=true     # 24h/12h 방향 + 1h 정렬 시 0.5x 탐색 진입
+export ENGINE_TV_PROBE_LEVERAGE=0.5
+```
 
 ## 테스트
 

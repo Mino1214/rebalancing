@@ -39,9 +39,36 @@ class SignalStoreTest(unittest.TestCase):
 
             self.assertFalse(duplicate)
             self.assertEqual(record["signal_id"], "sig-1")
-            self.assertEqual(record["regime"], "RANGE")
+            self.assertEqual(record["regime"], "TOP10_LONG")
+            self.assertEqual(record["target_leverage"], 1.0)
+            self.assertEqual(record["decision_source"], "server")
+            self.assertEqual(record["decision_action"], "ENTER")
+            self.assertEqual(record["source_regime"], "RANGE")
+            self.assertEqual(record["score"], 80.0)
             self.assertNotIn("passphrase", record)
             self.assertEqual(recent_tradingview_alerts(path=path)[0]["signal_id"], "sig-1")
+
+    def test_server_decision_overrides_stored_source_regime(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            path = Path(tempdir) / "signals.json"
+            payload = _payload("sig-top10")
+            payload.update(
+                {
+                    "regime": "RANGE",
+                    "target_leverage": 0,
+                    "btcd_up": False,
+                    "btcd_down": True,
+                    "total3_up": True,
+                }
+            )
+
+            record, duplicate = record_tradingview_alert(payload, path=path)
+
+            self.assertFalse(duplicate)
+            self.assertEqual(record["source_regime"], "RANGE")
+            self.assertEqual(record["regime"], "TOP10_LONG")
+            self.assertEqual(record["target_leverage"], 2.0)
+            self.assertEqual(record["score"], 100.0)
 
     def test_duplicate_signal_id_is_not_appended(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -62,7 +89,7 @@ class SignalStoreTest(unittest.TestCase):
             events = tradingview_alert_events(path=path)
 
             self.assertEqual(events[0]["kind"], "ALERT")
-            self.assertIn("TradingView RANGE", events[0]["message"])
+            self.assertIn("TradingView TOP10_LONG", events[0]["message"])
 
     def test_reads_webhook_token_from_file(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

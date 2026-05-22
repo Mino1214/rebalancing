@@ -16,13 +16,15 @@ cat workers/tradingview-webhook/.secrets/tradingview_webhook_passphrase.txt
 
 ## Timeframe
 
-Production signal timeframe:
+Production alert cadence:
 
 ```text
-240 minutes / 4H
+5 minutes / 5M
 ```
 
-Use `1` minute only for receive tests. After confirming the webhook receives alerts, switch TradingView back to `240`.
+The 5M alert is only the webhook cadence and execution helper. The payload includes 24H/12H direction filters, 8H/4H regime confirmation, 1H timing, and 5M execution flags; the server decides the final action.
+
+Use `1` minute only for receive tests. After confirming the webhook receives alerts, switch TradingView back to the MTF script's default `5M Execution` input.
 
 Recommended test flow:
 
@@ -30,7 +32,7 @@ Recommended test flow:
 1m alert
 -> Worker accepts payload
 -> duplicate signal_id is rejected
--> switch TradingView Signal Timeframe to 240
+-> switch TradingView 5M Execution input back to 5
 ```
 
 ## Private Engine Tunnel

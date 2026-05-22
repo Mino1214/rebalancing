@@ -64,6 +64,42 @@ class PortfolioBuilderTest(unittest.TestCase):
         self.assertNotIn("DAIUSDT", {candidate.symbol for candidate in universe})
         self.assertEqual(universe[0].symbol, "BTCUSDT")
 
+    def test_long_universe_does_not_fill_market_cap_basket_with_unmatched_symbols(self) -> None:
+        builder = PortfolioBuilder()
+        raw = [
+            MarketCandidate(
+                symbol="BTCUSDT",
+                base_asset="BTC",
+                quote_volume_24h=1_000_000_000,
+                listed_days=1_000,
+                dominance_rank=1,
+                dominance_pct=50,
+                market_cap_rank=1,
+            ),
+            MarketCandidate(
+                symbol="ETHUSDT",
+                base_asset="ETH",
+                quote_volume_24h=900_000_000,
+                listed_days=1_000,
+                dominance_rank=2,
+                dominance_pct=10,
+                market_cap_rank=2,
+            ),
+            MarketCandidate(
+                symbol="BSBUSDT",
+                base_asset="BSB",
+                quote_volume_24h=2_000_000_000,
+                listed_days=90,
+                dominance_rank=10001,
+                dominance_pct=5,
+                market_cap_rank=None,
+            ),
+        ]
+
+        universe = builder.select_long_universe(raw)
+
+        self.assertEqual({candidate.symbol for candidate in universe}, {"BTCUSDT", "ETHUSDT"})
+
 
 if __name__ == "__main__":
     unittest.main()

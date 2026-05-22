@@ -336,8 +336,38 @@ class BinanceFuturesClient:
         else:
             return None
 
-        entry_price = float(raw.get("entryPrice", 0.0)) or None
-        return Position(symbol=raw["symbol"], side=side, notional=notional, entry_price=entry_price)
+        return Position(
+            symbol=raw["symbol"],
+            side=side,
+            notional=notional,
+            entry_price=BinanceFuturesClient._optional_float(
+                raw.get("entryPrice"), zero_as_none=True
+            ),
+            quantity=abs(amount) or None,
+            mark_price=BinanceFuturesClient._optional_float(
+                raw.get("markPrice"), zero_as_none=True
+            ),
+            unrealized_pnl=BinanceFuturesClient._optional_float(
+                raw.get("unRealizedProfit")
+            ),
+            liquidation_price=BinanceFuturesClient._optional_float(
+                raw.get("liquidationPrice"), zero_as_none=True
+            ),
+            leverage=BinanceFuturesClient._optional_float(
+                raw.get("leverage"), zero_as_none=True
+            ),
+            margin_type=str(raw.get("marginType", "")) or None,
+        )
+
+    @staticmethod
+    def _optional_float(value: Any, *, zero_as_none: bool = False) -> float | None:
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return None
+        if zero_as_none and parsed == 0:
+            return None
+        return parsed
 
     @staticmethod
     def _market_candidate_from_raw(

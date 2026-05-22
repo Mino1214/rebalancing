@@ -152,6 +152,12 @@ class Position:
     side: PositionSide
     notional: float
     entry_price: float | None = None
+    quantity: float | None = None
+    mark_price: float | None = None
+    unrealized_pnl: float | None = None
+    liquidation_price: float | None = None
+    leverage: float | None = None
+    margin_type: str | None = None
 
     def __post_init__(self) -> None:
         if self.notional < 0:

@@ -2,12 +2,99 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 const String apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: 'https://engine.medicalnewshub.info',
 );
+
+const String _appLogoAsset = 'icons/logos.png';
+
+const Map<String, String> _iconAssets = {
+  'APP_LOGO': _appLogoAsset,
+  'BINANCE': 'icons/binance.svg',
+  'BNB': 'icons/BNB.svg',
+  'BTC': 'icons/BTC.svg',
+  'DOGE': 'icons/DOGE.svg',
+  'EDEN': 'icons/EDEN.svg',
+  'ETH': 'icons/ETH.svg',
+  'HYPE': 'icons/HYPE.svg',
+  'MARKET': 'icons/crypto-total-market-cap.svg',
+  'SOL': 'icons/SOL.svg',
+  'TOTAL': 'icons/crypto-total-market-cap.svg',
+  'TRADINGVIEW': 'icons/tradingview.svg',
+  'TRX': 'icons/TRX.svg',
+  'XRP': 'icons/XRP.svg',
+  'ZEC': 'icons/ZEC.svg',
+};
+
+const List<String> _fallbackCryptoIcons = [
+  'icons/BTC.svg',
+  'icons/ETH.svg',
+  'icons/BNB.svg',
+  'icons/SOL.svg',
+  'icons/XRP.svg',
+  'icons/DOGE.svg',
+  'icons/TRX.svg',
+  'icons/HYPE.svg',
+  'icons/ZEC.svg',
+  'icons/EDEN.svg',
+];
+
+class AppTextStyles {
+  const AppTextStyles._();
+
+  static const detailTitle = TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.w900,
+    color: Color(0xFF15171E),
+    letterSpacing: 0,
+    height: 1.1,
+  );
+
+  static const detailSubtitle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+    color: Color(0xFF7A7F89),
+    letterSpacing: 0,
+    height: 1.25,
+  );
+
+  static const sectionTitle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w900,
+    color: Color(0xFF15171E),
+    letterSpacing: 0,
+    height: 1.2,
+  );
+
+  static const rowLabel = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w700,
+    color: Color(0xFF7A7F89),
+    letterSpacing: 0,
+    height: 1.2,
+  );
+
+  static const rowValue = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w900,
+    color: Color(0xFF15171E),
+    letterSpacing: 0,
+    height: 1.2,
+  );
+
+  static const rowMeta = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w700,
+    color: Color(0xFF8A8D94),
+    letterSpacing: 0,
+    height: 1.2,
+  );
+}
 
 void main() {
   runApp(const RebalancingObserverApp());
@@ -31,7 +118,7 @@ class RebalancingObserverApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'Mino Engine',
+      title: '리밸런싱 관전',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: colorScheme,
@@ -46,13 +133,13 @@ class RebalancingObserverApp extends StatelessWidget {
           indicatorColor: Colors.transparent,
           labelTextStyle: WidgetStateProperty.resolveWith(
             (states) => TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: states.contains(WidgetState.selected)
-                  ? FontWeight.w800
-                  : FontWeight.w600,
+                  ? FontWeight.w700
+                  : FontWeight.w500,
               color: states.contains(WidgetState.selected)
-                  ? const Color(0xFF111827)
-                  : const Color(0xFF8A8D94),
+                  ? const Color(0xFF15171E)
+                  : const Color(0xFFAEB2BA),
               letterSpacing: 0,
               height: 1.2,
             ),
@@ -114,12 +201,7 @@ class _ObserverHomePageState extends State<ObserverHomePage> {
           body: SafeArea(
             child: Column(
               children: [
-                AppChrome(
-                    snapshot: data, loading: loading, onRefresh: _refresh),
-                WatchGroupTabs(
-                  selectedIndex: _selectedTab,
-                  onSelected: (index) => setState(() => _selectedTab = index),
-                ),
+                AppChrome(loading: loading, onRefresh: _refresh),
                 Expanded(
                   child: IndexedStack(
                     index: _selectedTab,
@@ -135,38 +217,47 @@ class _ObserverHomePageState extends State<ObserverHomePage> {
               ],
             ),
           ),
-          bottomNavigationBar: NavigationBar(
-            height: 72,
-            selectedIndex: _selectedTab,
-            onDestinationSelected: (index) =>
-                setState(() => _selectedTab = index),
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard),
-                label: '요약',
+          bottomNavigationBar: Container(
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Color(0xFFF1F2F4), width: 1),
               ),
-              NavigationDestination(
-                icon: Icon(Icons.account_tree_outlined),
-                selectedIcon: Icon(Icons.account_tree),
-                label: '포지션',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.receipt_long_outlined),
-                selectedIcon: Icon(Icons.receipt_long),
-                label: '주문',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.timeline),
-                selectedIcon: Icon(Icons.timeline),
-                label: '시장',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.menu),
-                selectedIcon: Icon(Icons.menu),
-                label: '로그',
-              ),
-            ],
+            ),
+            child: NavigationBar(
+              height: 60,
+              backgroundColor: Colors.white,
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              selectedIndex: _selectedTab,
+              onDestinationSelected: (index) =>
+                  setState(() => _selectedTab = index),
+              destinations: [
+                NavigationDestination(
+                  icon: Icon(PhosphorIconsRegular.squaresFour, size: 23),
+                  selectedIcon: Icon(PhosphorIconsFill.squaresFour, size: 23),
+                  label: '요약',
+                ),
+                NavigationDestination(
+                  icon: Icon(PhosphorIconsRegular.chartPieSlice, size: 23),
+                  selectedIcon: Icon(PhosphorIconsFill.chartPieSlice, size: 23),
+                  label: '포지션',
+                ),
+                NavigationDestination(
+                  icon: Icon(PhosphorIconsRegular.receipt, size: 23),
+                  selectedIcon: Icon(PhosphorIconsFill.receipt, size: 23),
+                  label: '주문',
+                ),
+                NavigationDestination(
+                  icon: Icon(PhosphorIconsRegular.chartLineUp, size: 23),
+                  selectedIcon: Icon(PhosphorIconsFill.chartLineUp, size: 23),
+                  label: '시장',
+                ),
+                NavigationDestination(
+                  icon: Icon(PhosphorIconsRegular.listBullets, size: 23),
+                  selectedIcon: Icon(PhosphorIconsFill.listBullets, size: 23),
+                  label: '로그',
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -177,159 +268,35 @@ class _ObserverHomePageState extends State<ObserverHomePage> {
 class AppChrome extends StatelessWidget {
   const AppChrome({
     super.key,
-    required this.snapshot,
     required this.loading,
     required this.onRefresh,
   });
 
-  final EngineSnapshot snapshot;
   final bool loading;
   final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Column(
+      padding: const EdgeInsets.fromLTRB(20, 4, 10, 2),
+      child: Row(
         children: [
-          Row(
-            children: [
-              IconButton(
-                tooltip: '상태',
-                onPressed: () {},
-                icon: const Icon(Icons.more_horiz, size: 30),
-              ),
-              const Spacer(),
-              Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'M',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                        letterSpacing: 0,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Mino Engine',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0,
-                            fontSize: 17,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              IconButton(
-                tooltip: '새로고침',
-                onPressed: onRefresh,
-                icon: loading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync, size: 28),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              StatusPill(
-                  label: regimeLabel(snapshot.regime),
-                  color: regimeColor(snapshot.regime)),
-              const SizedBox(width: 8),
-              StatusPill(
-                  label: modeLabel(snapshot.mode),
-                  color: modeColor(snapshot.mode)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '${sourceLabel(snapshot.source)} · ${snapshot.lastUpdated}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: const TextStyle(
-                    color: Color(0xFF7A7F89),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0,
-                  ),
-                ),
-              ),
-            ],
+          const Spacer(),
+          IconButton(
+            tooltip: '새로고침',
+            onPressed: onRefresh,
+            splashRadius: 22,
+            icon: loading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.2, color: Color(0xFF8A8D94)),
+                  )
+                : Icon(PhosphorIconsRegular.arrowsClockwise,
+                    size: 22, color: const Color(0xFF6B7079)),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class WatchGroupTabs extends StatelessWidget {
-  const WatchGroupTabs({
-    super.key,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    const tabs = ['요약', '포지션', '주문', '시장', '로그'];
-    return SizedBox(
-      height: 60,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: tabs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 22),
-        itemBuilder: (context, index) {
-          final selected = index == selectedIndex;
-          return Center(
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () => onSelected(index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                padding: EdgeInsets.symmetric(
-                  horizontal: selected ? 22 : 4,
-                  vertical: selected ? 12 : 0,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      selected ? const Color(0xFFEDEEF1) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  tabs[index],
-                  style: TextStyle(
-                    color: selected ? Colors.black : const Color(0xFF8A8D94),
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0,
-                    height: 1.1,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }
@@ -349,6 +316,11 @@ class SummaryView extends StatelessWidget {
         subtitle: '${sourceLabel(snapshot.source)} · ${snapshot.lastUpdated}',
         metric: compactUsdt(snapshot.equity),
         accent: regimeColor(snapshot.regime),
+        chart: PnlChartCard(
+          daily: snapshot.dailyPnlPct,
+          weekly: snapshot.weeklyPnlPct,
+          monthly: snapshot.monthlyPnlPct,
+        ),
         items: summaryItems(snapshot),
       ),
     );
@@ -370,6 +342,14 @@ class PositionsView extends StatelessWidget {
           ? const Color(0xFF787B86)
           : const Color(0xFF2563EB),
       items: positionItems(snapshot),
+      onItemTap: snapshot.positions.isEmpty
+          ? null
+          : (item) {
+              final position = positionForWatchItem(snapshot, item);
+              if (position != null) {
+                showPositionDetailScreen(context, snapshot, position);
+              }
+            },
     );
   }
 }
@@ -417,16 +397,17 @@ class LogView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rebalance = snapshot.paperRebalance;
     return WatchListScaffold(
       title: '이벤트 로그',
-      subtitle: snapshot.lastUpdated,
+      subtitle: logSubtitle(snapshot),
       metric: '${snapshot.events.length}개',
       accent: const Color(0xFF2563EB),
-      items: consoleItems(snapshot),
+      chart: rebalance == null ? null : RebalanceFlowCard(rebalance: rebalance),
+      items: consoleItems(snapshot, includeRebalance: rebalance == null),
+      compactLogRows: true,
       onItemTap: (item) {
-        if (item.symbol == eventKindLabel('ALERT')) {
-          showEngineResultSheet(context, snapshot);
-        }
+        showLogDetailScreen(context, snapshot, item);
       },
     );
   }
@@ -440,7 +421,9 @@ class WatchListScaffold extends StatelessWidget {
     required this.subtitle,
     required this.metric,
     required this.accent,
+    this.chart,
     this.onItemTap,
+    this.compactLogRows = false,
   });
 
   final List<WatchItem> items;
@@ -448,37 +431,54 @@ class WatchListScaffold extends StatelessWidget {
   final String subtitle;
   final String metric;
   final Color accent;
+  final Widget? chart;
   final ValueChanged<WatchItem>? onItemTap;
+  final bool compactLogRows;
 
   @override
   Widget build(BuildContext context) {
+    final leading = <Widget>[
+      ConsoleHeader(
+        title: title,
+        subtitle: subtitle,
+        metric: metric,
+        accent: accent,
+      ),
+      if (chart != null) chart!,
+    ];
+    final leadCount = leading.length;
+
     return ListView.separated(
       padding: const EdgeInsets.only(top: 6, bottom: 24),
-      itemCount: items.length + 1,
+      itemCount: leadCount + items.length,
       separatorBuilder: (context, index) {
-        if (index == 0) {
+        if (index < leadCount) {
           return const SizedBox(height: 6);
         }
         return const Divider(
           height: 1,
           indent: 68,
           endIndent: 18,
-          color: Color(0xFFEDEEF1),
+          color: Color(0xFFF1F2F4),
         );
       },
       itemBuilder: (context, index) {
-        if (index == 0) {
-          return ConsoleHeader(
-            title: title,
-            subtitle: subtitle,
-            metric: metric,
-            accent: accent,
-          );
+        final delay = Duration(milliseconds: (index * 45).clamp(0, 360));
+        if (index < leadCount) {
+          return FadeInUp(delay: delay, child: leading[index]);
         }
-        final item = items[index - 1];
-        return WatchRow(
-          item: item,
-          onTap: onItemTap == null ? null : () => onItemTap!(item),
+        final item = items[index - leadCount];
+        return FadeInUp(
+          delay: delay,
+          child: compactLogRows
+              ? LogRow(
+                  item: item,
+                  onTap: onItemTap == null ? null : () => onItemTap!(item),
+                )
+              : WatchRow(
+                  item: item,
+                  onTap: onItemTap == null ? null : () => onItemTap!(item),
+                ),
         );
       },
     );
@@ -502,20 +502,19 @@ class ConsoleHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
       child: Container(
-        constraints: const BoxConstraints(minHeight: 78),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        constraints: const BoxConstraints(minHeight: 60),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF6F7F9),
-          border: Border.all(color: const Color(0xFFE8EAEE)),
-          borderRadius: BorderRadius.circular(8),
+          color: const Color(0xFFF7F8FA),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           children: [
             Container(
-              width: 4,
-              height: 44,
+              width: 3,
+              height: 34,
               decoration: BoxDecoration(
                 color: accent,
                 borderRadius: BorderRadius.circular(2),
@@ -532,22 +531,22 @@ class ConsoleHeader extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
                       color: Color(0xFF15171E),
                       letterSpacing: 0,
-                      height: 1.15,
+                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 3),
                   Text(
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF7A7F89),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF9498A0),
                       letterSpacing: 0,
                       height: 1.2,
                     ),
@@ -562,8 +561,8 @@ class ConsoleHeader extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.end,
               style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
                 color: accent,
                 letterSpacing: 0,
                 height: 1.1,
@@ -572,6 +571,170 @@ class ConsoleHeader extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class PnlChartCard extends StatelessWidget {
+  const PnlChartCard({
+    super.key,
+    required this.daily,
+    required this.weekly,
+    required this.monthly,
+  });
+
+  final double daily;
+  final double weekly;
+  final double monthly;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = <(String, double)>[
+      ('일간', daily),
+      ('주간', weekly),
+      ('월간', monthly),
+    ];
+    final maxAbs =
+        entries.map((e) => e.$2.abs()).fold<double>(0, (a, b) => a > b ? a : b);
+    final scale = maxAbs < 0.01 ? 1.0 : maxAbs;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FA),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(PhosphorIconsFill.chartBar,
+                  size: 15, color: const Color(0xFF6B7079)),
+              const SizedBox(width: 6),
+              const Text(
+                '손익 추이',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF15171E),
+                  letterSpacing: 0,
+                ),
+              ),
+              const Spacer(),
+              const Text(
+                '일 · 주 · 월',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFFAEB2BA),
+                  letterSpacing: 0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          for (final e in entries)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: _PnlBar(label: e.$1, value: e.$2, scale: scale),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PnlBar extends StatelessWidget {
+  const _PnlBar(
+      {required this.label, required this.value, required this.scale});
+
+  final String label;
+  final double value;
+  final double scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final gain = value >= 0;
+    final color = value == 0
+        ? const Color(0xFFC4C8CE)
+        : (gain ? const Color(0xFF2F8F75) : const Color(0xFFC8404A));
+    final frac = (value.abs() / scale).clamp(0.0, 1.0);
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 38,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF7A7F89),
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: SizedBox(
+            height: 10,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: FractionallySizedBox(
+                      widthFactor: gain ? 0.0 : frac,
+                      child: Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: const BorderRadius.horizontal(
+                              left: Radius.circular(4)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                    width: 1.5, height: 10, color: const Color(0xFFE2E5EA)),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: gain ? frac : 0.0,
+                      child: Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: const BorderRadius.horizontal(
+                              right: Radius.circular(4)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 64,
+          child: Text(
+            pct(value),
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: color,
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -587,7 +750,7 @@ class WatchRow extends StatelessWidget {
     final negative = item.change.trimLeft().startsWith('-');
     final changeColor = negative ? const Color(0xFFC8404A) : item.accent;
     final rightColumnWidth =
-        (MediaQuery.sizeOf(context).width * 0.30).clamp(132.0, 260.0);
+        (MediaQuery.sizeOf(context).width * 0.36).clamp(140.0, 280.0);
     final changeText = item.changePct.isEmpty
         ? item.change
         : '${item.change} · ${item.changePct}';
@@ -595,26 +758,13 @@ class WatchRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: SizedBox(
-        height: 88,
+        height: 68,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 23,
-                backgroundColor: item.accent.withValues(alpha: 0.14),
-                child: Text(
-                  item.marker.toUpperCase(),
-                  style: TextStyle(
-                    color: item.accent,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0,
-                    height: 1.0,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
+              WatchIconBadge(item: item),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -625,22 +775,22 @@ class WatchRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                         color: Color(0xFF15171E),
                         letterSpacing: 0,
-                        height: 1.15,
+                        height: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 3),
                     Text(
                       item.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF80848C),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF9498A0),
                         letterSpacing: 0,
                         height: 1.25,
                       ),
@@ -661,38 +811,38 @@ class WatchRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
                       style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
                         color: Color(0xFF15171E),
                         letterSpacing: 0,
-                        height: 1.15,
+                        height: 1.2,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 3),
                     Text(
                       changeText,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.end,
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
                         color: changeColor,
                         letterSpacing: 0,
                         height: 1.2,
                       ),
                     ),
                     if (item.meta.isNotEmpty) ...[
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 2),
                       Text(
                         item.meta,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.end,
                         style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF8A8D94),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFFAEB2BA),
                           letterSpacing: 0,
                           height: 1.2,
                         ),
@@ -709,174 +859,1028 @@ class WatchRow extends StatelessWidget {
   }
 }
 
-void showEngineResultSheet(BuildContext context, EngineSnapshot snapshot) {
-  final signal = snapshot.tradingViewSignal;
-  showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-    ),
-    builder: (context) {
-      return SafeArea(
-        child: DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.72,
-          minChildSize: 0.42,
-          maxChildSize: 0.92,
-          builder: (context, scrollController) {
-            return ListView(
-              controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
-              children: [
-                Center(
-                  child: Container(
-                    width: 38,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD4D7DD),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Row(
+class LogRow extends StatelessWidget {
+  const LogRow({super.key, required this.item, this.onTap});
+
+  final WatchItem item;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final timeLabel = eventMinuteLabel(item.value);
+    final dayLabel = eventDayLabel(item.value);
+    final hintLabel = item.changePct.isNotEmpty ? item.changePct : dayLabel;
+
+    return InkWell(
+      onTap: onTap,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 64),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 14, 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              WatchIconBadge(item: item, size: 42),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 23,
-                      backgroundColor:
-                          regimeColor(snapshot.regime).withValues(alpha: 0.12),
-                      child: Icon(Icons.analytics_outlined,
-                          color: regimeColor(snapshot.regime)),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '엔진 결과',
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: item.accent.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            item.change,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF15171E),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              color: item.accent,
                               letterSpacing: 0,
                               height: 1.1,
                             ),
                           ),
-                          const SizedBox(height: 5),
-                          Text(
-                            signal?.signalId ?? snapshot.lastUpdated,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF7A7F89),
-                              letterSpacing: 0,
+                        ),
+                        if (hintLabel.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              hintLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFAEB2BA),
+                                letterSpacing: 0,
+                                height: 1.1,
+                              ),
                             ),
                           ),
                         ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF4E535C),
+                        letterSpacing: 0,
+                        height: 1.2,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 18),
-                DetailSection(
-                  title: 'TradingView',
-                  rows: [
-                    DetailRowData('레짐', signal?.regime ?? '-',
-                        regimeLabel(signal?.regime ?? '-')),
-                    DetailRowData(
-                        '타임프레임', signal?.timeframe ?? '-', 'confirmed'),
-                    DetailRowData(
-                        '목표 레버리지',
-                        '${(signal?.targetLeverage ?? 0).toStringAsFixed(2)}x',
-                        'TV'),
-                    DetailRowData(
-                        '신호 시간',
-                        signal?.barTimeMs?.toString() ??
-                            signal?.timeMs.toString() ??
-                            '-',
-                        'ms'),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 48,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      timeLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.clip,
+                      textAlign: TextAlign.end,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF15171E),
+                        letterSpacing: 0,
+                        height: 1.05,
+                      ),
+                    ),
+                    if (dayLabel.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        dayLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFAEB2BA),
+                          letterSpacing: 0,
+                          height: 1.05,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-                DetailSection(
-                  title: 'Engine',
-                  rows: [
-                    DetailRowData(
-                        '판정',
-                        '${regimeLabel(snapshot.regime)} / ${modeLabel(snapshot.mode)}',
-                        snapshot.marketBias),
-                    DetailRowData('점수', snapshot.regimeScore.toStringAsFixed(1),
-                        sourceLabel(snapshot.source)),
-                    DetailRowData(
-                        '노출',
-                        '${compactUsdt(snapshot.currentExposure)} → ${compactUsdt(snapshot.targetExposure)}',
-                        '${snapshot.leverage.toStringAsFixed(2)}x'),
-                    DetailRowData('주문', '${snapshot.orders.length}개',
-                        riskLabel(snapshot.riskState)),
-                  ],
-                ),
-                DetailSection(
-                  title: 'Market',
-                  rows: [
-                    DetailRowData(
-                        'Internals',
-                        snapshot.marketInternals.riskLabel,
-                        snapshot.marketInternals.source),
-                    DetailRowData(
-                        'Stable.D',
-                        fmtNullablePct(
-                            snapshot.marketInternals.stableDominancePct),
-                        'defensive'),
-                    DetailRowData(
-                        'Top10.D',
-                        fmtNullablePct(
-                            snapshot.marketInternals.top10DominanceTotalPct),
-                        'cap'),
-                    DetailRowData(
-                        'Breadth',
-                        fmtNullablePct(
-                            snapshot.marketInternals.volumeBreadthPct),
-                        snapshot.marketInternals.advanceDeclineLabel),
-                  ],
-                ),
-                DetailSection(
-                  title: 'Signal Flags',
-                  rows: [
-                    DetailRowData(
-                        'BTC',
-                        boolDirection(signal?.btcUp, signal?.btcDown),
-                        'direction'),
-                    DetailRowData(
-                        'TOTAL',
-                        boolDirection(signal?.totalUp, signal?.totalDown),
-                        'market'),
-                    DetailRowData(
-                        'TOTAL2',
-                        boolDirection(signal?.total2Up, signal?.total2Down),
-                        'alts'),
-                    DetailRowData(
-                        'TOTAL3',
-                        signal?.total3Weak == true ? 'WEAK' : 'OK',
-                        'pure alts'),
-                    DetailRowData(
-                        'BTC.D',
-                        boolDirection(signal?.btcdUp, signal?.btcdDown),
-                        'flow'),
-                  ],
+              ),
+              if (onTap != null) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  PhosphorIconsRegular.caretRight,
+                  size: 15,
+                  color: const Color(0xFFC2C6CE),
                 ),
               ],
-            );
-          },
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class RebalanceFlowCard extends StatelessWidget {
+  const RebalanceFlowCard({super.key, required this.rebalance});
+
+  final PaperRebalanceView rebalance;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = rebalance.reducedSymbols.isNotEmpty
+        ? rebalance.reducedSymbols
+        : rebalance.closedSymbols;
+    final added = rebalance.openedSymbols.isNotEmpty
+        ? rebalance.openedSymbols
+        : rebalance.increasedSymbols;
+    final hasReduced = reduced.isNotEmpty;
+    final hasAdded = added.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 13),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FA),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE8EAEE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color:
+                      eventColor(rebalance.eventKind).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  PhosphorIconsFill.arrowsLeftRight,
+                  size: 17,
+                  color: eventColor(rebalance.eventKind),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rebalanceFlowTitle(rebalance),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF15171E),
+                        letterSpacing: 0,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${compactUsdt(rebalance.fromExposure)} → ${compactUsdt(rebalance.toExposure)} · ${eventMinuteLabel(rebalance.time)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF8A8D94),
+                        letterSpacing: 0,
+                        height: 1.15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                compactUsdt(rebalance.grossOrderNotional),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: eventColor(rebalance.eventKind),
+                  letterSpacing: 0,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              Expanded(
+                child: RebalanceSymbolGroup(
+                  label: hasReduced ? reduceFlowLabel(rebalance) : '기존',
+                  symbols: hasReduced ? reduced : rebalance.changedSymbols,
+                  accent: const Color(0xFFC8404A),
+                  emptyText: '변경 없음',
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(
+                  flowArrowIcon(rebalance),
+                  size: 20,
+                  color: const Color(0xFFAEB2BA),
+                ),
+              ),
+              Expanded(
+                child: RebalanceSymbolGroup(
+                  label: hasAdded
+                      ? addFlowLabel(rebalance)
+                      : holdFlowLabel(rebalance),
+                  symbols: hasAdded ? added : rebalance.changedSymbols,
+                  accent: hasAdded
+                      ? const Color(0xFF2F8F75)
+                      : const Color(0xFF2563EB),
+                  emptyText: '대기',
+                ),
+              ),
+            ],
+          ),
+          if (rebalance.changedSymbols.isNotEmpty) ...[
+            const SizedBox(height: 11),
+            Text(
+              symbolsFlowSentence(rebalance),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF5F6570),
+                letterSpacing: 0,
+                height: 1.25,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class RebalanceSymbolGroup extends StatelessWidget {
+  const RebalanceSymbolGroup({
+    super.key,
+    required this.label,
+    required this.symbols,
+    required this.accent,
+    required this.emptyText,
+  });
+
+  final String label;
+  final List<String> symbols;
+  final Color accent;
+  final String emptyText;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = symbols.take(4).toList(growable: false);
+    final overflow = symbols.length - shown.length;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 74),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE8EAEE)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: accent,
+              letterSpacing: 0,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (shown.isEmpty)
+            Text(
+              emptyText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFFAEB2BA),
+                letterSpacing: 0,
+                height: 1.15,
+              ),
+            )
+          else
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                for (final symbol in shown)
+                  SymbolLogo(symbol: symbol, size: 28),
+                if (overflow > 0)
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F2F4),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFE2E5EA)),
+                    ),
+                    child: Text(
+                      '+$overflow',
+                      maxLines: 1,
+                      overflow: TextOverflow.clip,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF6B7079),
+                        letterSpacing: 0,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class SymbolLogo extends StatelessWidget {
+  const SymbolLogo({super.key, required this.symbol, this.size = 32});
+
+  final String symbol;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = iconAssetForSymbol(symbol);
+    final fallback = fallbackIconAssetForSymbol(symbol);
+    if (asset != null) {
+      return ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: asset.toLowerCase().endsWith('.svg')
+              ? SvgPicture.asset(
+                  asset,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      SvgPicture.asset(fallback, fit: BoxFit.cover),
+                )
+              : Image.asset(
+                  asset,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      SvgPicture.asset(fallback, fit: BoxFit.cover),
+                ),
         ),
       );
-    },
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F2F4),
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFFE2E5EA)),
+      ),
+      child: Text(
+        baseCryptoSymbol(symbol).characters.take(2).join(),
+        maxLines: 1,
+        overflow: TextOverflow.clip,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          color: Color(0xFF4E535C),
+          letterSpacing: 0,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class WatchIconBadge extends StatelessWidget {
+  const WatchIconBadge({super.key, required this.item, this.size = 46});
+
+  final WatchItem item;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = iconAssetForWatchItem(item);
+    final fallbackAsset = fallbackIconAssetForWatchItem(item);
+    final iconSize = size * 0.46;
+    if (asset != null) {
+      return ClipOval(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: asset.toLowerCase().endsWith('.svg')
+              ? SvgPicture.asset(
+                  asset,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      SvgPicture.asset(
+                    fallbackAsset,
+                    fit: BoxFit.cover,
+                  ),
+                  placeholderBuilder: (context) => Icon(
+                    watchIcon(item.symbol),
+                    size: iconSize,
+                    color: item.accent,
+                  ),
+                )
+              : Image.asset(
+                  asset,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      SvgPicture.asset(
+                    fallbackAsset,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+        ),
+      );
+    }
+
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: item.accent.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        watchIcon(item.symbol),
+        size: iconSize,
+        color: item.accent,
+      ),
+    );
+  }
+}
+
+class FadeInUp extends StatefulWidget {
+  const FadeInUp({
+    super.key,
+    required this.child,
+    this.delay = Duration.zero,
+    this.offset = 14,
+  });
+
+  final Widget child;
+  final Duration delay;
+  final double offset;
+
+  @override
+  State<FadeInUp> createState() => _FadeInUpState();
+}
+
+class _FadeInUpState extends State<FadeInUp>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 420),
   );
+  late final Animation<double> _curve =
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.delay == Duration.zero) {
+      _controller.forward();
+    } else {
+      _timer = Timer(widget.delay, () {
+        if (mounted) _controller.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _curve,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _curve.value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - _curve.value) * widget.offset),
+            child: child,
+          ),
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+void showEngineResultScreen(BuildContext context, EngineSnapshot snapshot) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (context) => EngineResultScreen(snapshot: snapshot),
+    ),
+  );
+}
+
+void showLogDetailScreen(
+  BuildContext context,
+  EngineSnapshot snapshot,
+  WatchItem item,
+) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (context) => LogDetailScreen(snapshot: snapshot, item: item),
+    ),
+  );
+}
+
+void showPositionDetailScreen(
+  BuildContext context,
+  EngineSnapshot snapshot,
+  PositionView position,
+) {
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (context) => PositionDetailScreen(
+        snapshot: snapshot,
+        position: position,
+      ),
+    ),
+  );
+}
+
+class LogDetailScreen extends StatelessWidget {
+  const LogDetailScreen({
+    super.key,
+    required this.snapshot,
+    required this.item,
+  });
+
+  final EngineSnapshot snapshot;
+  final WatchItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final timeLabel = eventMinuteLabel(item.value);
+    final dayLabel = eventDayLabel(item.value);
+    final detailText = item.detail.isEmpty ? item.title : item.detail;
+    final sections = <Widget>[
+      DetailSection(
+        title: '로그',
+        rows: [
+          DetailRowData('종류', item.change, item.symbol),
+          DetailRowData('요약', item.title, item.changePct),
+          DetailRowData(
+            '시간',
+            timeLabel,
+            dayLabel.isEmpty ? item.value : dayLabel,
+          ),
+        ],
+      ),
+      DetailTextSection(title: '원문', text: detailText),
+      if (item.meta.isNotEmpty && item.meta != item.value)
+        DetailSection(
+          title: '참조',
+          rows: [
+            DetailRowData('메타', item.meta, sourceLabel(snapshot.source)),
+          ],
+        ),
+    ];
+
+    if (logItemOpensEngineResult(item)) {
+      sections.add(
+        DetailSection(
+          title: '엔진 결과',
+          rows: [
+            DetailRowData(
+              '판정',
+              '${regimeLabel(snapshot.regime)} / ${modeLabel(snapshot.mode)}',
+              snapshot.marketBias,
+            ),
+            DetailRowData(
+              '노출',
+              '${compactUsdt(snapshot.currentExposure)} → ${compactUsdt(snapshot.targetExposure)}',
+              '${snapshot.leverage.toStringAsFixed(2)}x',
+            ),
+            DetailRowData(
+              '스냅샷',
+              snapshot.lastUpdated,
+              sourceLabel(snapshot.source),
+            ),
+          ],
+        ),
+      );
+      sections.addAll(engineResultSections(snapshot));
+    }
+
+    return DetailPageScaffold(
+      title: '로그 상세',
+      subtitle: '${item.change} · $timeLabel',
+      icon: watchIcon(item.symbol),
+      accent: item.accent,
+      children: sections,
+    );
+  }
+}
+
+class EngineResultScreen extends StatelessWidget {
+  const EngineResultScreen({super.key, required this.snapshot});
+
+  final EngineSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final signal = snapshot.tradingViewSignal;
+    final accent = regimeColor(snapshot.regime);
+
+    return DetailPageScaffold(
+      title: '엔진 결과',
+      subtitle: signal?.signalId ?? snapshot.lastUpdated,
+      icon: PhosphorIconsFill.chartLineUp,
+      accent: accent,
+      children: engineResultSections(snapshot),
+    );
+  }
+}
+
+List<Widget> engineResultSections(EngineSnapshot snapshot) {
+  final signal = snapshot.tradingViewSignal;
+  final rebalance = snapshot.paperRebalance;
+
+  return [
+    if (rebalance != null)
+      DetailSection(
+        title: '최근 리밸런싱',
+        rows: [
+          DetailRowData(
+            '결과',
+            rebalanceEventLabel(rebalance.eventKind),
+            '${regimeLabel(rebalance.regime)} / ${modeLabel(rebalance.mode)}',
+          ),
+          DetailRowData(
+            '노출',
+            '${compactUsdt(rebalance.fromExposure)} → ${compactUsdt(rebalance.toExposure)}',
+            '목표 ${compactUsdt(rebalance.targetExposure)}',
+          ),
+          DetailRowData(
+            '주문',
+            '${rebalance.orderCount}개',
+            '진입 ${rebalance.openCount} · 청산 ${rebalance.closeCount}',
+          ),
+          DetailRowData(
+            '구성',
+            '${rebalance.positionCountBefore} → ${rebalance.positionCountAfter}종목',
+            '회전 ${compactUsdt(rebalance.grossOrderNotional)}',
+          ),
+          DetailRowData(
+            '변경',
+            symbolsPreview(rebalance.changedSymbols),
+            rebalance.signalId,
+          ),
+          DetailRowData(
+            '시간',
+            eventMinuteLabel(rebalance.time),
+            eventDayLabel(rebalance.time),
+          ),
+        ],
+      ),
+    DetailSection(
+      title: 'TradingView',
+      rows: [
+        DetailRowData(
+            '레짐', signal?.regime ?? '-', regimeLabel(signal?.regime ?? '-')),
+        DetailRowData('타임프레임', signal?.timeframe ?? '-', 'confirmed'),
+        DetailRowData(
+          '목표 레버리지',
+          '${(signal?.targetLeverage ?? 0).toStringAsFixed(2)}x',
+          'TV',
+        ),
+        DetailRowData(
+          '신호 시간',
+          signal == null
+              ? '-'
+              : eventMinuteLabel(signal.barTimeMs ?? signal.timeMs),
+          signal == null
+              ? '-'
+              : eventDayLabel(signal.barTimeMs ?? signal.timeMs),
+        ),
+      ],
+    ),
+    DetailSection(
+      title: 'Engine',
+      rows: [
+        DetailRowData(
+          '판정',
+          '${regimeLabel(snapshot.regime)} / ${modeLabel(snapshot.mode)}',
+          snapshot.marketBias,
+        ),
+        DetailRowData(
+          '점수',
+          displayRegimeScore(snapshot).toStringAsFixed(1),
+          displayRegimeScoreLabel(snapshot),
+        ),
+        DetailRowData(
+          '노출',
+          '${compactUsdt(snapshot.currentExposure)} → ${compactUsdt(snapshot.targetExposure)}',
+          '${snapshot.leverage.toStringAsFixed(2)}x',
+        ),
+        DetailRowData(
+          '주문',
+          '${snapshot.orders.length}개',
+          riskLabel(snapshot.riskState),
+        ),
+      ],
+    ),
+    DetailSection(
+      title: 'Market',
+      rows: [
+        DetailRowData(
+          'Internals',
+          snapshot.marketInternals.riskLabel,
+          snapshot.marketInternals.source,
+        ),
+        DetailRowData(
+          'Stable.D',
+          fmtNullablePct(snapshot.marketInternals.stableDominancePct),
+          'defensive',
+        ),
+        DetailRowData(
+          'Top10.D',
+          fmtNullablePct(snapshot.marketInternals.top10DominanceTotalPct),
+          'cap',
+        ),
+        DetailRowData(
+          'Breadth',
+          fmtNullablePct(snapshot.marketInternals.volumeBreadthPct),
+          snapshot.marketInternals.advanceDeclineLabel,
+        ),
+      ],
+    ),
+    DetailSection(
+      title: 'Signal Flags',
+      rows: [
+        DetailRowData(
+            'BTC', boolDirection(signal?.btcUp, signal?.btcDown), 'direction'),
+        DetailRowData(
+          'TOTAL',
+          boolDirection(signal?.totalUp, signal?.totalDown),
+          'market',
+        ),
+        DetailRowData(
+          'TOTAL2',
+          boolDirection(signal?.total2Up, signal?.total2Down),
+          'alts',
+        ),
+        DetailRowData(
+          'TOTAL3',
+          signal?.total3Weak == true ? 'WEAK' : 'OK',
+          'pure alts',
+        ),
+        DetailRowData(
+          'BTC.D',
+          boolDirection(signal?.btcdUp, signal?.btcdDown),
+          'flow',
+        ),
+      ],
+    ),
+  ];
+}
+
+class PositionDetailScreen extends StatelessWidget {
+  const PositionDetailScreen({
+    super.key,
+    required this.snapshot,
+    required this.position,
+  });
+
+  final EngineSnapshot snapshot;
+  final PositionView position;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = sideColor(position.side);
+
+    return DetailPageScaffold(
+      title: '포지션 상세',
+      subtitle: '${position.symbol} · ${sideLabel(position.side)}',
+      icon: PhosphorIconsFill.chartPieSlice,
+      accent: accent,
+      children: [
+        DetailSection(
+          title: 'Position',
+          rows: [
+            DetailRowData('방향', sideLabel(position.side), position.side),
+            DetailRowData(
+              '명목금액',
+              positionNotionalUsdt(position),
+              positionExposurePct(snapshot, position),
+            ),
+            DetailRowData(
+              '수량',
+              fmtNullableQuantity(position.quantity),
+              'contracts',
+            ),
+            DetailRowData(
+              '레버리지',
+              fmtNullableLeverage(position.leverage),
+              '계좌 ${snapshot.leverage.toStringAsFixed(2)}x',
+            ),
+          ],
+        ),
+        DetailSection(
+          title: 'Price / PnL',
+          rows: [
+            DetailRowData(
+                '진입가', fmtNullablePrice(position.entryPrice), 'entry'),
+            DetailRowData('마크가', fmtNullablePrice(position.markPrice), 'mark'),
+            DetailRowData(
+              '청산가',
+              fmtNullablePrice(position.liquidationPrice),
+              'liq',
+            ),
+            DetailRowData(
+              '미실현 손익',
+              fmtNullableSignedUsdt(position.unrealizedPnl),
+              positionPnlPct(position),
+            ),
+          ],
+        ),
+        DetailSection(
+          title: 'Context',
+          rows: [
+            DetailRowData(
+              '마진',
+              position.marginType.isEmpty ? '-' : position.marginType,
+              sourceLabel(snapshot.source),
+            ),
+            DetailRowData(
+              '현재 노출',
+              compactUsdt(snapshot.currentExposure),
+              '목표 ${compactUsdt(snapshot.targetExposure)}',
+            ),
+            DetailRowData('업데이트', snapshot.lastUpdated, 'snapshot'),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class DetailPageScaffold extends StatelessWidget {
+  const DetailPageScaffold({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.children,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          tooltip: '닫기',
+          onPressed: () => Navigator.of(context).pop(),
+          icon: Icon(
+            PhosphorIconsRegular.x,
+            size: 22,
+            color: const Color(0xFF15171E),
+          ),
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 2, 18, 28),
+          children: [
+            DetailHeroHeader(
+              title: title,
+              subtitle: subtitle,
+              icon: icon,
+              accent: accent,
+            ),
+            const SizedBox(height: 18),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DetailHeroHeader extends StatelessWidget {
+  const DetailHeroHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, size: 24, color: accent),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.detailTitle,
+              ),
+              const SizedBox(height: 5),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.detailSubtitle,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class DetailSection extends StatelessWidget {
@@ -900,15 +1904,44 @@ class DetailSection extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF15171E),
-              letterSpacing: 0,
-            ),
+            style: AppTextStyles.sectionTitle,
           ),
           const SizedBox(height: 8),
           ...rows.map((row) => DetailLine(row: row)),
+        ],
+      ),
+    );
+  }
+}
+
+class DetailTextSection extends StatelessWidget {
+  const DetailTextSection({super.key, required this.title, required this.text});
+
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6F7F9),
+        border: Border.all(color: const Color(0xFFE8EAEE)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTextStyles.sectionTitle,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: AppTextStyles.rowValue.copyWith(height: 1.35),
+          ),
         ],
       ),
     );
@@ -932,12 +1965,7 @@ class DetailLine extends StatelessWidget {
               row.label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF7A7F89),
-                letterSpacing: 0,
-              ),
+              style: AppTextStyles.rowLabel,
             ),
           ),
           Expanded(
@@ -945,12 +1973,7 @@ class DetailLine extends StatelessWidget {
               row.value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF15171E),
-                letterSpacing: 0,
-              ),
+              style: AppTextStyles.rowValue,
             ),
           ),
           const SizedBox(width: 10),
@@ -960,12 +1983,7 @@ class DetailLine extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.end,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF8A8D94),
-                letterSpacing: 0,
-              ),
+              style: AppTextStyles.rowMeta,
             ),
           ),
         ],
@@ -991,12 +2009,12 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 11),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(13),
       ),
       child: Text(
         label,
@@ -1004,8 +2022,8 @@ class StatusPill extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: color,
-          fontSize: 14,
-          fontWeight: FontWeight.w800,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
           letterSpacing: 0,
           height: 1.1,
         ),
@@ -1066,6 +2084,7 @@ class EngineSnapshot {
     required this.monthlyPnlPct,
     required this.cooldownUntil,
     required this.tradingViewSignal,
+    required this.paperRebalance,
     required this.marketInternals,
     required this.positions,
     required this.orders,
@@ -1089,6 +2108,7 @@ class EngineSnapshot {
   final double monthlyPnlPct;
   final String? cooldownUntil;
   final TradingViewSignal? tradingViewSignal;
+  final PaperRebalanceView? paperRebalance;
   final MarketInternalsView marketInternals;
   final List<PositionView> positions;
   final List<OrderView> orders;
@@ -1124,6 +2144,13 @@ class EngineSnapshot {
       cooldownUntil:
           (json['cooldown_until'] ?? json['cooldownUntil'])?.toString(),
       tradingViewSignal: TradingViewSignal.tryParse(json['tradingview_signal']),
+      paperRebalance: PaperRebalanceView.tryParse(
+        json['last_rebalance'] ??
+            json['lastRebalance'] ??
+            (json['paper'] is Map
+                ? (json['paper'] as Map)['last_rebalance']
+                : null),
+      ),
       marketInternals: MarketInternalsView.fromJson(
           json['market_internals'] ?? json['marketInternals']),
       positions: positions,
@@ -1169,8 +2196,31 @@ class EngineSnapshot {
         btcdDown: false,
         timeframe: '5',
         confirmed: true,
+        score: 80,
         timeMs: 1779215702553,
         barTimeMs: 1779215700000,
+        signalId: 'RANGE_5_1779215700000',
+      ),
+      paperRebalance: const PaperRebalanceView(
+        time: '2026-05-19T23:43:00+09:00',
+        eventKind: 'PAPER_ENTRY',
+        regime: 'BTC_ETH_LONG',
+        mode: 'LONG',
+        fromExposure: 0,
+        toExposure: 3300,
+        targetExposure: 3300,
+        deltaExposure: 3300,
+        orderCount: 2,
+        openCount: 2,
+        closeCount: 0,
+        positionCountBefore: 0,
+        positionCountAfter: 2,
+        grossOrderNotional: 3300,
+        changedSymbols: ['BTCUSDT', 'ETHUSDT'],
+        openedSymbols: ['BTCUSDT', 'ETHUSDT'],
+        increasedSymbols: [],
+        reducedSymbols: [],
+        closedSymbols: [],
         signalId: 'RANGE_5_1779215700000',
       ),
       marketInternals: const MarketInternalsView(
@@ -1224,6 +2274,7 @@ class EngineSnapshot {
       monthlyPnlPct: monthlyPnlPct,
       cooldownUntil: cooldownUntil,
       tradingViewSignal: tradingViewSignal,
+      paperRebalance: paperRebalance,
       marketInternals: marketInternals,
       positions: positions,
       orders: orders,
@@ -1251,6 +2302,7 @@ class TradingViewSignal {
     required this.timeMs,
     required this.barTimeMs,
     required this.signalId,
+    this.score,
   });
 
   final String regime;
@@ -1269,6 +2321,7 @@ class TradingViewSignal {
   final int? timeMs;
   final int? barTimeMs;
   final String signalId;
+  final double? score;
 
   static TradingViewSignal? tryParse(Object? raw) {
     if (raw is! Map) return null;
@@ -1291,8 +2344,95 @@ class TradingViewSignal {
       btcdDown: json['btcd_down'] == true || json['btcdDown'] == true,
       timeframe: (json['tf'] ?? json['timeframe'] ?? '-').toString(),
       confirmed: json['confirmed'] != false,
+      score: toNullableDouble(json['score']),
       timeMs: toNullableInt(json['time_ms'] ?? json['timeMs']),
       barTimeMs: toNullableInt(json['bar_time_ms'] ?? json['barTimeMs']),
+      signalId: (json['signal_id'] ?? json['signalId'] ?? '-').toString(),
+    );
+  }
+}
+
+class PaperRebalanceView {
+  const PaperRebalanceView({
+    required this.time,
+    required this.eventKind,
+    required this.regime,
+    required this.mode,
+    required this.fromExposure,
+    required this.toExposure,
+    required this.targetExposure,
+    required this.deltaExposure,
+    required this.orderCount,
+    required this.openCount,
+    required this.closeCount,
+    required this.positionCountBefore,
+    required this.positionCountAfter,
+    required this.grossOrderNotional,
+    required this.changedSymbols,
+    required this.openedSymbols,
+    required this.increasedSymbols,
+    required this.reducedSymbols,
+    required this.closedSymbols,
+    required this.signalId,
+  });
+
+  final String time;
+  final String eventKind;
+  final String regime;
+  final String mode;
+  final double fromExposure;
+  final double toExposure;
+  final double targetExposure;
+  final double deltaExposure;
+  final int orderCount;
+  final int openCount;
+  final int closeCount;
+  final int positionCountBefore;
+  final int positionCountAfter;
+  final double grossOrderNotional;
+  final List<String> changedSymbols;
+  final List<String> openedSymbols;
+  final List<String> increasedSymbols;
+  final List<String> reducedSymbols;
+  final List<String> closedSymbols;
+  final String signalId;
+
+  static PaperRebalanceView? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    return PaperRebalanceView.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  factory PaperRebalanceView.fromJson(Map<String, dynamic> json) {
+    return PaperRebalanceView(
+      time: (json['time'] ?? '-').toString(),
+      eventKind:
+          (json['event_kind'] ?? json['eventKind'] ?? 'PAPER').toString(),
+      regime: (json['regime'] ?? 'RANGE').toString(),
+      mode: (json['mode'] ?? 'NEUTRAL').toString(),
+      fromExposure: toDouble(json['from_exposure'] ?? json['fromExposure']),
+      toExposure: toDouble(json['to_exposure'] ?? json['toExposure']),
+      targetExposure:
+          toDouble(json['target_exposure'] ?? json['targetExposure']),
+      deltaExposure: toDouble(json['delta_exposure'] ?? json['deltaExposure']),
+      orderCount: toInt(json['order_count'] ?? json['orderCount']),
+      openCount: toInt(json['open_count'] ?? json['openCount']),
+      closeCount: toInt(json['close_count'] ?? json['closeCount']),
+      positionCountBefore:
+          toInt(json['position_count_before'] ?? json['positionCountBefore']),
+      positionCountAfter:
+          toInt(json['position_count_after'] ?? json['positionCountAfter']),
+      grossOrderNotional:
+          toDouble(json['gross_order_notional'] ?? json['grossOrderNotional']),
+      changedSymbols:
+          stringListOf(json['changed_symbols'] ?? json['changedSymbols']),
+      openedSymbols:
+          stringListOf(json['opened_symbols'] ?? json['openedSymbols']),
+      increasedSymbols:
+          stringListOf(json['increased_symbols'] ?? json['increasedSymbols']),
+      reducedSymbols:
+          stringListOf(json['reduced_symbols'] ?? json['reducedSymbols']),
+      closedSymbols:
+          stringListOf(json['closed_symbols'] ?? json['closedSymbols']),
       signalId: (json['signal_id'] ?? json['signalId'] ?? '-').toString(),
     );
   }
@@ -1341,18 +2481,47 @@ class MarketInternalsView {
 }
 
 class PositionView {
-  const PositionView(
-      {required this.symbol, required this.side, required this.notional});
+  const PositionView({
+    required this.symbol,
+    required this.side,
+    required this.notional,
+    this.entryPrice,
+    this.markPrice,
+    this.unrealizedPnl,
+    this.quantity,
+    this.leverage,
+    this.liquidationPrice,
+    this.marginType = '',
+  });
 
   final String symbol;
   final String side;
   final double notional;
+  final double? entryPrice;
+  final double? markPrice;
+  final double? unrealizedPnl;
+  final double? quantity;
+  final double? leverage;
+  final double? liquidationPrice;
+  final String marginType;
 
   factory PositionView.fromJson(Map<String, dynamic> json) {
     return PositionView(
       symbol: (json['symbol'] ?? '-').toString(),
       side: (json['side'] ?? '-').toString(),
       notional: toDouble(json['notional']),
+      entryPrice: toNullableDouble(json['entry_price'] ?? json['entryPrice']),
+      markPrice: toNullableDouble(
+          json['mark_price'] ?? json['markPrice'] ?? json['last_price']),
+      unrealizedPnl: toNullableDouble(json['unrealized_pnl'] ??
+          json['unrealizedPnl'] ??
+          json['unRealizedProfit']),
+      quantity: toNullableDouble(
+          json['quantity'] ?? json['position_amt'] ?? json['positionAmt']),
+      leverage: toNullableDouble(json['leverage']),
+      liquidationPrice: toNullableDouble(
+          json['liquidation_price'] ?? json['liquidationPrice']),
+      marginType: (json['margin_type'] ?? json['marginType'] ?? '').toString(),
     );
   }
 }
@@ -1418,6 +2587,8 @@ class WatchItem {
     required this.accent,
     required this.marker,
     this.meta = '',
+    this.iconAsset,
+    this.detail = '',
   });
 
   final String symbol;
@@ -1428,6 +2599,8 @@ class WatchItem {
   final Color accent;
   final String marker;
   final String meta;
+  final String? iconAsset;
+  final String detail;
 
   factory WatchItem.fromJson(Map<String, dynamic> json) {
     return WatchItem(
@@ -1439,6 +2612,23 @@ class WatchItem {
       accent: parseColor(json['color']) ?? const Color(0xFF2F8F75),
       marker: firstMarker((json['marker'] ?? json['symbol'] ?? '?').toString()),
       meta: (json['meta'] ?? '').toString(),
+      iconAsset: (json['icon_asset'] ?? json['iconAsset'])?.toString(),
+      detail: (json['detail'] ?? json['details'] ?? '').toString(),
+    );
+  }
+
+  WatchItem copyWith({String? iconAsset, String? detail}) {
+    return WatchItem(
+      symbol: symbol,
+      title: title,
+      value: value,
+      change: change,
+      changePct: changePct,
+      accent: accent,
+      marker: marker,
+      meta: meta,
+      iconAsset: iconAsset ?? this.iconAsset,
+      detail: detail ?? this.detail,
     );
   }
 }
@@ -1449,7 +2639,8 @@ List<WatchItem> summaryItems(EngineSnapshot snapshot) {
       symbol: '레짐',
       title: snapshot.marketBias,
       value: regimeLabel(snapshot.regime),
-      change: '점수 ${snapshot.regimeScore.toStringAsFixed(1)}',
+      change:
+          '${displayRegimeScoreLabel(snapshot)} ${displayRegimeScore(snapshot).toStringAsFixed(1)}',
       changePct: modeLabel(snapshot.mode),
       accent: regimeColor(snapshot.regime),
       marker: 'R',
@@ -1511,17 +2702,30 @@ List<WatchItem> positionItems(EngineSnapshot snapshot) {
         (position) => WatchItem(
           symbol: position.symbol,
           title: sideLabel(position.side),
-          value: compactUsdt(position.notional),
+          value: positionNotionalUsdt(position),
           change: sideLabel(position.side),
-          changePct: snapshot.equity <= 0 || position.notional == 0
-              ? '0.00%'
-              : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
+          changePct: positionExposurePct(snapshot, position),
           accent: sideColor(position.side),
           marker: firstMarker(position.symbol),
-          meta: '바이낸스 현재 포지션',
+          meta: positionMeta(position),
         ),
       )
       .toList(growable: false);
+}
+
+PositionView? positionForWatchItem(EngineSnapshot snapshot, WatchItem item) {
+  for (final position in snapshot.positions) {
+    if (position.symbol == item.symbol &&
+        sideLabel(position.side) == item.title) {
+      return position;
+    }
+  }
+  for (final position in snapshot.positions) {
+    if (position.symbol == item.symbol) {
+      return position;
+    }
+  }
+  return null;
 }
 
 List<WatchItem> orderItems(EngineSnapshot snapshot) {
@@ -1701,11 +2905,9 @@ List<WatchItem> portfolioItems(EngineSnapshot snapshot) {
         (position) => WatchItem(
           symbol: position.symbol,
           title: sideLabel(position.side),
-          value: compactUsdt(position.notional),
+          value: positionNotionalUsdt(position),
           change: sideLabel(position.side),
-          changePct: snapshot.equity <= 0 || position.notional == 0
-              ? '0.00%'
-              : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
+          changePct: positionExposurePct(snapshot, position),
           accent: sideColor(position.side),
           marker: firstMarker(position.symbol),
           meta: '바이낸스 현재 포지션',
@@ -1866,21 +3068,34 @@ List<WatchItem> guardItems(EngineSnapshot snapshot) {
   ];
 }
 
-List<WatchItem> consoleItems(EngineSnapshot snapshot) {
-  final items = snapshot.events
-      .map(
-        (event) => WatchItem(
-          symbol: eventKindLabel(event.kind),
-          title: event.message,
-          value: event.time,
-          change: eventKindLabel(event.kind),
-          changePct: sourceLabel(snapshot.source),
-          accent: eventColor(event.kind),
-          marker: eventMarker(event.kind),
-          meta: '프로젝트 로그',
+List<WatchItem> consoleItems(
+  EngineSnapshot snapshot, {
+  bool includeRebalance = true,
+}) {
+  final items = <WatchItem>[];
+  final rebalance = snapshot.paperRebalance;
+  if (rebalance != null && includeRebalance) {
+    items.add(rebalanceLogItem(rebalance));
+  }
+
+  items.addAll(
+    snapshot.events
+        .where((event) =>
+            rebalance == null || !isSameRebalanceEvent(event, rebalance))
+        .map(
+          (event) => WatchItem(
+            symbol: eventKindLabel(event.kind),
+            title: eventLogSummary(event),
+            value: event.time,
+            change: eventKindLabel(event.kind),
+            changePct: eventLogHint(event),
+            accent: eventColor(event.kind),
+            marker: eventMarker(event.kind),
+            meta: event.kind,
+            detail: event.message,
+          ),
         ),
-      )
-      .toList(growable: true);
+  );
 
   if (items.isEmpty) {
     items.add(
@@ -1893,11 +3108,233 @@ List<WatchItem> consoleItems(EngineSnapshot snapshot) {
         accent: const Color(0xFF787B86),
         marker: '?',
         meta: snapshot.lastUpdated,
+        detail: '아직 수신된 이벤트가 없습니다.',
       ),
     );
   }
 
   return items;
+}
+
+WatchItem rebalanceLogItem(PaperRebalanceView rebalance) {
+  final label = rebalanceEventLabel(rebalance.eventKind);
+  final composition = rebalance.positionCountBefore > 0 ||
+          rebalance.positionCountAfter > 0
+      ? ' · ${rebalance.positionCountBefore}→${rebalance.positionCountAfter}종목'
+      : '';
+  final detail =
+      '${regimeLabel(rebalance.regime)} ${compactUsdt(rebalance.fromExposure)} → ${compactUsdt(rebalance.toExposure)}$composition · ${symbolsPreview(rebalance.changedSymbols)}';
+  return WatchItem(
+    symbol: eventKindLabel(rebalance.eventKind),
+    title: paperRebalanceLogSummary(rebalance),
+    value: rebalance.time,
+    change: label,
+    changePct: paperRebalanceLogHint(rebalance),
+    accent: eventColor(rebalance.eventKind),
+    marker: eventMarker(rebalance.eventKind),
+    meta: rebalance.signalId,
+    detail: detail,
+  );
+}
+
+String rebalanceFlowTitle(PaperRebalanceView rebalance) {
+  final reduced =
+      rebalance.reducedSymbols.length + rebalance.closedSymbols.length;
+  final added =
+      rebalance.openedSymbols.length + rebalance.increasedSymbols.length;
+  if (reduced > 0 && added > 0) {
+    return '$reduced개 줄이고 $added개 담았어요';
+  }
+  if (reduced > 0) {
+    return '$reduced개 포지션을 줄였어요';
+  }
+  if (added > 0) {
+    return '$added개 포지션을 담았어요';
+  }
+  return paperRebalanceLogSummary(rebalance);
+}
+
+String reduceFlowLabel(PaperRebalanceView rebalance) {
+  if (rebalance.closedSymbols.isNotEmpty && rebalance.reducedSymbols.isEmpty) {
+    return '청산';
+  }
+  return '축소';
+}
+
+String addFlowLabel(PaperRebalanceView rebalance) {
+  if (rebalance.increasedSymbols.isNotEmpty &&
+      rebalance.openedSymbols.isEmpty) {
+    return '증액';
+  }
+  return '매수';
+}
+
+String holdFlowLabel(PaperRebalanceView rebalance) {
+  if (rebalance.eventKind == 'PAPER_EXIT') return '현금화';
+  if (rebalance.reducedSymbols.isNotEmpty ||
+      rebalance.closedSymbols.isNotEmpty) {
+    return '남은 포지션';
+  }
+  return '유지';
+}
+
+IconData flowArrowIcon(PaperRebalanceView rebalance) {
+  if (rebalance.openedSymbols.isNotEmpty ||
+      rebalance.increasedSymbols.isNotEmpty) {
+    return PhosphorIconsRegular.arrowRight;
+  }
+  if (rebalance.closedSymbols.isNotEmpty) {
+    return PhosphorIconsRegular.arrowCircleDownRight;
+  }
+  if (rebalance.reducedSymbols.isNotEmpty) {
+    return PhosphorIconsRegular.arrowBendDownRight;
+  }
+  return PhosphorIconsRegular.equals;
+}
+
+String symbolsFlowSentence(PaperRebalanceView rebalance) {
+  final reduced = rebalance.reducedSymbols.isNotEmpty
+      ? rebalance.reducedSymbols
+      : rebalance.closedSymbols;
+  final added = rebalance.openedSymbols.isNotEmpty
+      ? rebalance.openedSymbols
+      : rebalance.increasedSymbols;
+
+  if (reduced.isNotEmpty && added.isNotEmpty) {
+    return '${symbolsPreview(reduced)} 줄이고 ${symbolsPreview(added)} 담음';
+  }
+  if (reduced.isNotEmpty) {
+    return '${symbolsPreview(reduced)} ${reduceFlowLabel(rebalance)}';
+  }
+  if (added.isNotEmpty) {
+    return '${symbolsPreview(added)} ${addFlowLabel(rebalance)}';
+  }
+  return symbolsPreview(rebalance.changedSymbols);
+}
+
+String paperRebalanceLogSummary(PaperRebalanceView rebalance) {
+  return switch (rebalance.eventKind) {
+    'PAPER_ENTRY' => '페이퍼 진입 완료',
+    'PAPER_REBALANCE' => '페이퍼 리밸런싱 완료',
+    'PAPER_EXIT' => '페이퍼 청산 완료',
+    'PAPER_HOLD' => '페이퍼 포지션 유지',
+    _ => '페이퍼 상태 갱신',
+  };
+}
+
+String paperRebalanceLogHint(PaperRebalanceView rebalance) {
+  final parts = <String>[
+    regimeLabel(rebalance.regime),
+    if (rebalance.orderCount > 0) '주문 ${rebalance.orderCount}개',
+    if (rebalance.positionCountBefore > 0 || rebalance.positionCountAfter > 0)
+      '${rebalance.positionCountBefore}→${rebalance.positionCountAfter}종목',
+  ];
+  return parts.join(' · ');
+}
+
+String eventLogSummary(EventView event) {
+  final kind = event.kind.toUpperCase();
+  final message = event.message.trim();
+  final lower = message.toLowerCase();
+
+  return switch (kind) {
+    'ALERT' => message.contains('웹훅') ? '트레이딩뷰 웹훅 수신' : '트레이딩뷰 알림 수신',
+    'DECISION' => decisionEventSummary(message),
+    'PAPER_ENTRY' => lower.startsWith('increase') ? '페이퍼 포지션 증액' : '페이퍼 진입 완료',
+    'PAPER_REBALANCE' =>
+      lower.startsWith('reduce') || lower.startsWith('increase')
+          ? '페이퍼 포지션 조정'
+          : '페이퍼 리밸런싱 완료',
+    'PAPER_EXIT' => '페이퍼 청산 완료',
+    'PAPER_ORDER' => '페이퍼 주문 생성',
+    'PAPER_HOLD' => '페이퍼 포지션 유지',
+    'PAPER' => '페이퍼 상태 갱신',
+    'SECRET' => '시크릿 동기화 완료',
+    'WORKER' => lower.contains('deploy') || message.contains('배포')
+        ? '워커 배포 완료'
+        : '워커 상태 확인',
+    'ERROR' => '오류 확인 필요',
+    'BINANCE' => '바이낸스 연결 확인',
+    'CONFIG' => '설정 확인 필요',
+    'INTERNALS' => '시장 내부 지표 갱신',
+    'UNIVERSE' => '거래 후보군 갱신',
+    'ORDERS' => lower.contains('no order') ? '추가 주문 없음' : '예정 주문 생성',
+    'LIVE' => '실거래 실행 모드',
+    'DRYRUN' => '드라이런 실행 모드',
+    _ => compactKoreanLogMessage(message),
+  };
+}
+
+String decisionEventSummary(String message) {
+  final lower = message.toLowerCase();
+  if (message.contains('관망') || lower.contains('neutral')) {
+    return '엔진 관망 유지';
+  }
+  if (lower.contains('risk stop') || message.contains('리스크')) {
+    return '리스크 가드 작동';
+  }
+  if (lower.contains('chaotic')) {
+    return '혼조장 진입 차단';
+  }
+  if (lower.contains('deposit')) {
+    return '입금 리밸런싱 대기';
+  }
+  if (lower.contains('preliminary bear')) {
+    return '예비 약세 신호 확인';
+  }
+  if (lower.contains('preliminary bull')) {
+    return '예비 강세 신호 확인';
+  }
+  if (lower.contains('rebalance')) {
+    return '리밸런싱 조건 확인';
+  }
+  return '엔진 판단 갱신';
+}
+
+String eventLogHint(EventView event) {
+  return switch (event.kind.toUpperCase()) {
+    'ALERT' => '신호',
+    'DECISION' => '엔진',
+    'PAPER_ENTRY' ||
+    'PAPER_REBALANCE' ||
+    'PAPER_EXIT' ||
+    'PAPER_ORDER' ||
+    'PAPER_HOLD' ||
+    'PAPER' =>
+      '페이퍼',
+    'SECRET' => '보안',
+    'WORKER' => 'Cloudflare',
+    'ERROR' => '확인 필요',
+    'BINANCE' => '거래소',
+    'CONFIG' => '환경',
+    'INTERNALS' => '마켓',
+    'UNIVERSE' => '후보군',
+    'ORDERS' => '주문',
+    'LIVE' => '실거래',
+    'DRYRUN' => '모의',
+    _ => eventDayLabel(event.time),
+  };
+}
+
+String compactKoreanLogMessage(String message) {
+  final text = message.trim();
+  if (text.isEmpty || text == '-') return '이벤트 수신';
+  final translated = text
+      .replaceAll('TradingView', '트레이딩뷰')
+      .replaceAll('Binance', '바이낸스')
+      .replaceAll('accepted', '수락')
+      .replaceAll('failed', '실패')
+      .replaceAll('loaded', '로드')
+      .replaceAll('generated', '생성')
+      .replaceAll('enabled', '활성화');
+  if (translated.characters.length <= 28) return translated;
+  return '${translated.characters.take(28).join()}...';
+}
+
+bool isSameRebalanceEvent(EventView event, PaperRebalanceView rebalance) {
+  return event.kind == rebalance.eventKind &&
+      event.time == rebalance.time &&
+      event.message.contains('->');
 }
 
 List<WatchItem> defaultWatchItems(EngineSnapshot snapshot) {
@@ -1936,11 +3373,9 @@ List<WatchItem> defaultWatchItems(EngineSnapshot snapshot) {
       (position) => WatchItem(
         symbol: position.symbol,
         title: sideLabel(position.side),
-        value: compactUsdt(position.notional),
+        value: positionNotionalUsdt(position),
         change: sideLabel(position.side),
-        changePct: snapshot.equity <= 0 || position.notional == 0
-            ? '0.00%'
-            : '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%',
+        changePct: positionExposurePct(snapshot, position),
         accent: sideColor(position.side),
         marker: firstMarker(position.symbol),
         meta: '현재 포지션',
@@ -1971,6 +3406,86 @@ EventView? latestEvent(EngineSnapshot snapshot, String kind) {
   }
   return null;
 }
+
+String logSubtitle(EngineSnapshot snapshot) {
+  if (snapshot.events.isEmpty) {
+    return '최근 이벤트 없음';
+  }
+  return '최근 ${eventMinuteLabel(snapshot.events.first.time)} 수신';
+}
+
+double displayRegimeScore(EngineSnapshot snapshot) {
+  final signal = snapshot.tradingViewSignal;
+  if (signal == null) return snapshot.regimeScore;
+  if (signal.score != null) return signal.score!;
+
+  var score = 0.0;
+  score += boolPairScore(signal.btcUp, signal.btcDown, 40.0);
+  score += boolPairScore(signal.totalUp, signal.totalDown, 25.0);
+  score += boolPairScore(signal.total2Up, signal.total2Down, 25.0);
+  if (signal.btcdDown) {
+    score += 10.0;
+  } else if (signal.btcdUp) {
+    score -= 10.0;
+  }
+  return score;
+}
+
+String displayRegimeScoreLabel(EngineSnapshot snapshot) {
+  return snapshot.tradingViewSignal == null ? '점수' : 'TV점수';
+}
+
+double boolPairScore(bool up, bool down, double weight) {
+  if (up && !down) return weight;
+  if (down && !up) return -weight;
+  return 0.0;
+}
+
+String eventMinuteLabel(Object? raw) {
+  final dateTime = parseEventDateTime(raw);
+  if (dateTime != null) {
+    return '${twoDigits(dateTime.hour)}:${twoDigits(dateTime.minute)}';
+  }
+
+  final text = raw?.toString() ?? '-';
+  final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(text);
+  if (match != null) {
+    return '${match.group(1)!.padLeft(2, '0')}:${match.group(2)}';
+  }
+  return text.length <= 5 ? text : text.substring(0, 5);
+}
+
+String eventDayLabel(Object? raw) {
+  final dateTime = parseEventDateTime(raw);
+  if (dateTime == null) return '';
+  final now = DateTime.now();
+  if (dateTime.year == now.year &&
+      dateTime.month == now.month &&
+      dateTime.day == now.day) {
+    return '오늘';
+  }
+  return '${twoDigits(dateTime.month)}/${twoDigits(dateTime.day)}';
+}
+
+DateTime? parseEventDateTime(Object? raw) {
+  if (raw == null) return null;
+  if (raw is int) {
+    return DateTime.fromMillisecondsSinceEpoch(raw).toLocal();
+  }
+  if (raw is num) {
+    return DateTime.fromMillisecondsSinceEpoch(raw.toInt()).toLocal();
+  }
+
+  final text = raw.toString().trim();
+  if (text.isEmpty || text == '-') return null;
+  final millis = int.tryParse(text);
+  if (millis != null && text.length >= 12) {
+    return DateTime.fromMillisecondsSinceEpoch(millis).toLocal();
+  }
+  return DateTime.tryParse(text)?.toLocal();
+}
+
+String twoDigits(int value) => value.toString().padLeft(2, '0');
 
 String regimeLabel(String regime) {
   return switch (regime) {
@@ -2047,13 +3562,45 @@ String decisionDetail(EngineSnapshot snapshot) {
   };
 }
 
+bool logItemOpensEngineResult(WatchItem item) {
+  return {
+    eventKindLabel('ALERT'),
+    eventKindLabel('PAPER_ENTRY'),
+    eventKindLabel('PAPER_REBALANCE'),
+    eventKindLabel('PAPER_EXIT'),
+  }.contains(item.symbol);
+}
+
+String rebalanceEventLabel(String kind) {
+  return switch (kind) {
+    'PAPER_ENTRY' => '진입',
+    'PAPER_REBALANCE' => '리밸런싱',
+    'PAPER_EXIT' => '청산',
+    'PAPER_HOLD' => '유지',
+    _ => '페이퍼',
+  };
+}
+
 String eventKindLabel(String kind) {
   return switch (kind) {
     'ALERT' => '알림',
     'DECISION' => '판단',
+    'PAPER_ENTRY' => '진입',
+    'PAPER_REBALANCE' => '리밸런싱',
+    'PAPER_EXIT' => '청산',
+    'PAPER_ORDER' => '주문',
+    'PAPER_HOLD' => '유지',
+    'PAPER' => '페이퍼',
     'SECRET' => '시크릿',
     'WORKER' => '워커',
     'ERROR' => '오류',
+    'BINANCE' => '바이낸스',
+    'CONFIG' => '설정',
+    'INTERNALS' => '시장',
+    'UNIVERSE' => '후보군',
+    'ORDERS' => '주문',
+    'LIVE' => '실거래',
+    'DRYRUN' => '모의',
     _ => kind,
   };
 }
@@ -2061,6 +3608,17 @@ String eventKindLabel(String kind) {
 Color eventColor(String kind) {
   return switch (kind) {
     'ERROR' => const Color(0xFFC8404A),
+    'CONFIG' => const Color(0xFFC08A17),
+    'PAPER_ENTRY' => const Color(0xFF2F8F75),
+    'PAPER_REBALANCE' => const Color(0xFF2563EB),
+    'PAPER_EXIT' => const Color(0xFFC8404A),
+    'PAPER_ORDER' => const Color(0xFFC08A17),
+    'PAPER_HOLD' => const Color(0xFF787B86),
+    'ORDERS' => const Color(0xFFC08A17),
+    'BINANCE' => const Color(0xFFF0B90B),
+    'INTERNALS' || 'UNIVERSE' => const Color(0xFF2563EB),
+    'LIVE' => const Color(0xFFC8404A),
+    'DRYRUN' => const Color(0xFF787B86),
     'SECRET' || 'ALERT' || 'WORKER' => const Color(0xFF2F8F75),
     'DECISION' => const Color(0xFF2563EB),
     _ => const Color(0xFF787B86),
@@ -2068,7 +3626,135 @@ Color eventColor(String kind) {
 }
 
 String eventMarker(String kind) {
+  if (kind == 'PAPER_ENTRY') return '+';
+  if (kind == 'PAPER_REBALANCE') return 'R';
+  if (kind == 'PAPER_EXIT') return '-';
   return firstMarker(kind);
+}
+
+String? iconAssetForWatchItem(WatchItem item) {
+  final direct = item.iconAsset;
+  if (direct != null && direct.isNotEmpty) return direct;
+  return iconAssetForSymbol(item.symbol);
+}
+
+String? iconAssetForSymbol(String symbol) {
+  final raw = symbol.trim();
+  final upper = raw.toUpperCase();
+  final compact = upper.replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
+  if (upper == 'PAPER.PNL' ||
+      compact == 'PAPERPNL' ||
+      (compact.contains('PAPER') && compact.contains('PNL'))) {
+    return _iconAssets['APP_LOGO'];
+  }
+  if (upper == 'TV.SIGNAL' ||
+      compact == 'TVSIGNAL' ||
+      compact == 'TRADINGVIEWSIGNAL' ||
+      raw.contains('알림') ||
+      upper.contains('TRADINGVIEW')) {
+    return _iconAssets['TRADINGVIEW'];
+  }
+  if (raw.contains('바이낸스') || upper.contains('BINANCE')) {
+    return _iconAssets['BINANCE'];
+  }
+  if (upper == 'INTERNALS') {
+    return _iconAssets['BINANCE'];
+  }
+  if (raw.contains('시장') ||
+      upper.contains('STABLE.D') ||
+      upper.contains('TOP10.D') ||
+      upper.contains('TOTAL')) {
+    return _iconAssets['MARKET'];
+  }
+
+  final base = baseCryptoSymbol(raw);
+  final exact = _iconAssets[base];
+  if (exact != null) return exact;
+  if (!looksLikeCryptoMarketSymbol(upper)) return null;
+
+  return 'icons/$base.svg';
+}
+
+String fallbackIconAssetForWatchItem(WatchItem item) {
+  return fallbackIconAssetForSymbol(item.symbol);
+}
+
+String fallbackIconAssetForSymbol(String symbol) {
+  final base = baseCryptoSymbol(symbol);
+  var hash = 0;
+  for (final codeUnit in base.codeUnits) {
+    hash = (hash * 31 + codeUnit) & 0x7fffffff;
+  }
+  return _fallbackCryptoIcons[hash % _fallbackCryptoIcons.length];
+}
+
+String baseCryptoSymbol(String value) {
+  var symbol = value.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9.]'), '');
+  for (final suffix in const ['USDT', 'USDC', 'BUSD', 'USD', 'PERP']) {
+    if (symbol.endsWith(suffix) && symbol.length > suffix.length) {
+      symbol = symbol.substring(0, symbol.length - suffix.length);
+      break;
+    }
+  }
+  if (symbol.startsWith('1000') && symbol.length > 4) {
+    symbol = symbol.substring(4);
+  }
+  return symbol;
+}
+
+bool looksLikeCryptoMarketSymbol(String symbol) {
+  final clean = symbol.replaceAll(RegExp(r'[^A-Z0-9.]'), '');
+  return clean.endsWith('USDT') ||
+      clean.endsWith('USDC') ||
+      clean.endsWith('BUSD') ||
+      clean.endsWith('PERP');
+}
+
+IconData watchIcon(String symbol) {
+  final s = symbol;
+  if (s.contains('레짐')) return PhosphorIconsRegular.compass;
+  if (s.contains('자산')) return PhosphorIconsRegular.wallet;
+  if (s.contains('레버리지')) return PhosphorIconsRegular.gauge;
+  if (s.contains('리스크')) return PhosphorIconsRegular.shieldWarning;
+  if (s.contains('플랫')) return PhosphorIconsRegular.minus;
+  if (s.contains('주문')) return PhosphorIconsRegular.receipt;
+  if (s.contains('목표')) return PhosphorIconsRegular.target;
+  if (s.contains('진입')) return PhosphorIconsRegular.arrowCircleUpRight;
+  if (s.contains('리밸런싱')) return PhosphorIconsRegular.arrowsLeftRight;
+  if (s.contains('청산')) return PhosphorIconsRegular.arrowCircleDownRight;
+  if (s.contains('유지')) return PhosphorIconsRegular.pauseCircle;
+  if (s.contains('페이퍼')) return PhosphorIconsRegular.notepad;
+  if (s.contains('시장') || s.contains('콘솔')) {
+    return PhosphorIconsRegular.chartLineUp;
+  }
+  if (s.contains('동작') || s.contains('앱')) {
+    return PhosphorIconsRegular.deviceMobile;
+  }
+  if (s.contains('웹훅')) return PhosphorIconsRegular.link;
+  if (s.contains('신호')) return PhosphorIconsRegular.broadcast;
+  if (s.contains('엔진')) return PhosphorIconsRegular.cpu;
+  if (s.contains('실거래') || s.contains('바이낸스')) {
+    return PhosphorIconsRegular.currencyBtc;
+  }
+  if (s.contains('일간') || s.contains('주간') || s.contains('월간')) {
+    return PhosphorIconsRegular.calendarBlank;
+  }
+  if (s.contains('쿨다운') || s.contains('대기')) {
+    return PhosphorIconsRegular.timer;
+  }
+  if (s.contains('알림')) return PhosphorIconsRegular.bell;
+  if (s.contains('판단')) return PhosphorIconsRegular.brain;
+  if (s.contains('시크릿')) return PhosphorIconsRegular.key;
+  if (s.contains('워커')) return PhosphorIconsRegular.cloud;
+  if (s.contains('오류')) return PhosphorIconsRegular.warning;
+  if (s.contains('설정')) return PhosphorIconsRegular.gearSix;
+  if (s.contains('후보군')) return PhosphorIconsRegular.stack;
+  if (s.contains('모의')) return PhosphorIconsRegular.flask;
+  if (s.contains('USDT') || s.contains('BTC') || s.contains('ETH')) {
+    return PhosphorIconsRegular.currencyBtc;
+  }
+  return PhosphorIconsRegular.circlesThree;
 }
 
 String firstMarker(String value) {
@@ -2082,6 +3768,11 @@ List<T> listOf<T>(Object? raw, T Function(Map<String, dynamic>) parser) {
       .whereType<Map>()
       .map((item) => parser(Map<String, dynamic>.from(item)))
       .toList(growable: false);
+}
+
+List<String> stringListOf(Object? raw) {
+  if (raw is! List) return const [];
+  return raw.map((item) => item.toString()).toList(growable: false);
 }
 
 double toDouble(Object? value) {
@@ -2117,6 +3808,58 @@ String fmtNullablePct(double? value) {
   return '${value.toStringAsFixed(2)}%';
 }
 
+String fmtNullablePrice(double? value) {
+  if (value == null || value == 0) return '-';
+  final absolute = value.abs();
+  if (absolute >= 1000) return value.toStringAsFixed(2);
+  if (absolute >= 1) return value.toStringAsFixed(4);
+  return value.toStringAsFixed(6);
+}
+
+String fmtNullableQuantity(double? value) {
+  if (value == null || value == 0) return '-';
+  final absolute = value.abs();
+  if (absolute >= 100) return value.toStringAsFixed(2);
+  if (absolute >= 1) return value.toStringAsFixed(4);
+  return value.toStringAsFixed(6);
+}
+
+String fmtNullableLeverage(double? value) {
+  if (value == null || value == 0) return '-';
+  return '${value.toStringAsFixed(2)}x';
+}
+
+String fmtNullableSignedUsdt(double? value) {
+  if (value == null) return '-';
+  return '${value >= 0 ? '+' : '-'}${compactUsdt(value.abs())}';
+}
+
+String positionPnlPct(PositionView position) {
+  final pnl = position.unrealizedPnl;
+  if (pnl == null || position.notional == 0) return '-';
+  return pct(pnl / position.notional * 100);
+}
+
+String positionExposurePct(EngineSnapshot snapshot, PositionView position) {
+  if (snapshot.equity <= 0 || position.notional == 0) return '0.00%';
+  return '${(position.notional / snapshot.equity * 100).toStringAsFixed(2)}%';
+}
+
+String positionNotionalUsdt(PositionView position) =>
+    '${compactUsdt(position.notional)} USDT';
+
+String positionMeta(PositionView position) {
+  final parts = <String>[];
+  if (position.entryPrice != null) {
+    parts.add('진입 ${fmtNullablePrice(position.entryPrice)}');
+  }
+  if (position.unrealizedPnl != null) {
+    parts.add('PnL ${fmtNullableSignedUsdt(position.unrealizedPnl)}');
+  }
+  if (parts.isEmpty) return '바이낸스 현재 포지션';
+  return parts.join(' · ');
+}
+
 String boolDirection(bool? up, bool? down) {
   if (up == true && down == true) return 'CONFLICT';
   if (up == true) return 'UP';
@@ -2136,12 +3879,19 @@ String compactUsdt(double value) {
   return '$sign${absolute.toStringAsFixed(absolute >= 100 ? 0 : 2)}';
 }
 
+String symbolsPreview(List<String> symbols, {int limit = 4}) {
+  if (symbols.isEmpty) return '-';
+  final visible = symbols.take(limit).join(', ');
+  final hidden = symbols.length - limit;
+  return hidden > 0 ? '$visible 외 $hidden' : visible;
+}
+
 String pct(double value) =>
     '${value >= 0 ? '+' : ''}${value.toStringAsFixed(2)}%';
 
 Color regimeColor(String regime) {
   return switch (regime) {
-    'BULL' || 'TOP10_LONG' => const Color(0xFF2F8F75),
+    'BULL' || 'TOP10_LONG' || 'BTC_ETH_LONG' => const Color(0xFF2F8F75),
     'BEAR' || 'SHORT_MODE' || 'ALT_WEAK_SHORT' => const Color(0xFFC8404A),
     'CHAOTIC' => const Color(0xFF8F3FA8),
     _ => const Color(0xFF787B86),

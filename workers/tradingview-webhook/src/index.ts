@@ -20,11 +20,16 @@ interface TradingViewAlert {
   schema?: string;
   source?: string;
   passphrase?: string;
+  server_decides?: boolean;
+  suggested_regime?: Regime;
+  suggested_target_leverage?: number;
   regime: Regime;
   target_leverage: number;
   score?: number;
   btc_up: boolean;
   btc_down?: boolean;
+  btc_fast_bull?: boolean;
+  btc_fast_bear?: boolean;
   total_up: boolean;
   total_down?: boolean;
   total2_up: boolean;
@@ -33,12 +38,28 @@ interface TradingViewAlert {
   total3_weak: boolean;
   btcd_up: boolean;
   btcd_down?: boolean;
+  timeframes?: Record<string, TimeframeFlags>;
   tf?: string;
   confirmed?: boolean;
   time?: string | number;
   time_ms?: number;
   bar_time_ms?: number;
   signal_id?: string;
+}
+
+interface TimeframeFlags {
+  btc_up?: boolean;
+  btc_down?: boolean;
+  btc_fast_bull?: boolean;
+  btc_fast_bear?: boolean;
+  total_up?: boolean;
+  total_down?: boolean;
+  total2_up?: boolean;
+  total2_down?: boolean;
+  total3_up?: boolean;
+  total3_weak?: boolean;
+  btcd_up?: boolean;
+  btcd_down?: boolean;
 }
 
 interface AcceptedAlert extends TradingViewAlert {
@@ -48,6 +69,14 @@ interface AcceptedAlert extends TradingViewAlert {
   time_ms: number;
   signal_id: string;
   received_at_ms: number;
+}
+
+interface EngineDecisionResponse {
+  regime?: Regime;
+  target_leverage?: number;
+  score?: number;
+  decision_action?: string;
+  decision_reason?: string;
 }
 
 export default {
@@ -92,8 +121,14 @@ export default {
         ok: true,
         accepted: true,
         signal_id: normalized.signal_id,
-        regime: normalized.regime,
-        target_leverage: normalized.target_leverage,
+        server_decides: normalized.server_decides ?? true,
+        regime: forwardResult.engine?.regime ?? normalized.regime,
+        target_leverage: forwardResult.engine?.target_leverage ?? normalized.target_leverage,
+        score: forwardResult.engine?.score ?? normalized.score,
+        decision_action: forwardResult.engine?.decision_action,
+        decision_reason: forwardResult.engine?.decision_reason,
+        source_regime: normalized.regime,
+        source_target_leverage: normalized.target_leverage,
         forwarded: forwardResult.forwarded,
         forward_status: forwardResult.status,
         forward_error: forwardResult.error,
@@ -150,19 +185,18 @@ function validateAlert(alert: AcceptedAlert, env: Env): string[] {
   if (ageSeconds < -60) errors.push("future_alert");
 
   if (alert.btc_up && alert.btc_down) errors.push("btc_direction_conflict");
+  if (alert.btc_fast_bull && alert.btc_fast_bear) errors.push("btc_fast_direction_conflict");
   if (alert.total_up && alert.total_down) errors.push("total_direction_conflict");
   if (alert.total2_up && alert.total2_down) errors.push("total2_direction_conflict");
   if (alert.total3_up && alert.total3_weak) errors.push("total3_direction_conflict");
   if (alert.btcd_up && alert.btcd_down) errors.push("btcd_direction_conflict");
-
-  if (alert.regime === "TOP10_LONG" && !(alert.btc_up && alert.total_up && alert.total2_up)) {
-    errors.push("top10_long_inconsistent");
-  }
-  if (alert.regime === "BTC_ETH_LONG" && !(alert.btc_up && alert.total_up && alert.btcd_up)) {
-    errors.push("btc_eth_long_inconsistent");
-  }
-  if (alert.regime === "ALT_WEAK_SHORT" && !(alert.total3_weak && alert.btcd_up)) {
-    errors.push("alt_weak_short_inconsistent");
+  for (const [tf, flags] of Object.entries(alert.timeframes ?? {})) {
+    if (flags.btc_up && flags.btc_down) errors.push(`${tf}_btc_direction_conflict`);
+    if (flags.btc_fast_bull && flags.btc_fast_bear) errors.push(`${tf}_btc_fast_direction_conflict`);
+    if (flags.total_up && flags.total_down) errors.push(`${tf}_total_direction_conflict`);
+    if (flags.total2_up && flags.total2_down) errors.push(`${tf}_total2_direction_conflict`);
+    if (flags.total3_up && flags.total3_weak) errors.push(`${tf}_total3_direction_conflict`);
+    if (flags.btcd_up && flags.btcd_down) errors.push(`${tf}_btcd_direction_conflict`);
   }
 
   return errors;
@@ -182,7 +216,7 @@ async function isDuplicate(alert: AcceptedAlert, env: Env): Promise<boolean> {
 async function forwardToEngine(
   alert: AcceptedAlert,
   env: Env,
-): Promise<{ forwarded: boolean; status?: number; error?: string }> {
+): Promise<{ forwarded: boolean; status?: number; error?: string; engine?: EngineDecisionResponse }> {
   if (!env.ENGINE_WEBHOOK_URL || !env.ENGINE_WEBHOOK_TOKEN) {
     return { forwarded: false, error: "engine_forward_not_configured" };
   }
@@ -212,7 +246,7 @@ async function forwardToEngine(
       });
       return { forwarded: false, status: response.status, error };
     }
-    return { forwarded: true, status: response.status };
+    return { forwarded: true, status: response.status, engine: await parseEngineDecision(response) };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown_error";
     console.warn("Engine webhook forward failed", {
@@ -221,6 +255,18 @@ async function forwardToEngine(
     });
     return { forwarded: false, error: message };
   }
+}
+
+async function parseEngineDecision(response: Response): Promise<EngineDecisionResponse | undefined> {
+  try {
+    const data = await response.json();
+    if (data && typeof data === "object") {
+      return data as EngineDecisionResponse;
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }
 
 function jsonResponse(body: unknown, status: number): Response {

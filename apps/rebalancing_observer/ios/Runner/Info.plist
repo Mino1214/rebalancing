@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>리밸런싱 관전</string>
+	<string>JIMO RPG</string>
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>ko</string>

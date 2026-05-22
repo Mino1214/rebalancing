@@ -30,7 +30,16 @@ from .models import (
     TradeMode,
     TrendDirection,
 )
-from .tradingview import TradingViewAlert, TradingViewAlertError, TradingViewAlertGate, TradingViewRegime
+from .tradingview import (
+    TradingViewAction,
+    TradingViewAlert,
+    TradingViewAlertError,
+    TradingViewAlertGate,
+    TradingViewRegime,
+    TradingViewServerDecision,
+    finalize_tradingview_alert,
+    server_decision_from_flags,
+)
 
 __all__ = [
     "AccountSnapshot",
@@ -62,11 +71,15 @@ __all__ = [
     "TradeMode",
     "TrendDirection",
     "TradingViewAlert",
+    "TradingViewAction",
     "TradingViewAlertError",
     "TradingViewAlertGate",
     "TradingViewRegime",
+    "TradingViewServerDecision",
     "advance_decline_from_candidates",
     "apply_market_cap_dominance",
     "build_market_internals",
+    "finalize_tradingview_alert",
     "live_trading_enabled",
+    "server_decision_from_flags",
 ]

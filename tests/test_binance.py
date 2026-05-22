@@ -15,12 +15,25 @@ class BinanceFuturesClientTest(unittest.TestCase):
                 "positionSide": "BOTH",
                 "positionAmt": "-0.10",
                 "notional": "-7000",
+                "entryPrice": "70000",
+                "markPrice": "69000",
+                "unRealizedProfit": "100",
+                "liquidationPrice": "82000",
+                "leverage": "2",
+                "marginType": "cross",
             }
         )
 
         self.assertIsNotNone(position)
         self.assertEqual(position.side, PositionSide.SHORT)
         self.assertEqual(position.notional, 7000)
+        self.assertEqual(position.quantity, 0.1)
+        self.assertEqual(position.entry_price, 70000)
+        self.assertEqual(position.mark_price, 69000)
+        self.assertEqual(position.unrealized_pnl, 100)
+        self.assertEqual(position.liquidation_price, 82000)
+        self.assertEqual(position.leverage, 2)
+        self.assertEqual(position.margin_type, "cross")
 
     def test_market_candidate_parser_filters_to_trading_usdt_perps(self) -> None:
         candidate = BinanceFuturesClient._market_candidate_from_raw(
@@ -45,4 +58,3 @@ class BinanceFuturesClientTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

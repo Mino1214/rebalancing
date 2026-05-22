@@ -1,0 +1,119 @@
+//@version=5
+indicator("Crypto Regime Engine - MTF Server Decides", overlay=false)
+
+// === Symbols ===
+btcSymbol    = input.symbol("BINANCE:BTCUSDT", "BTC")
+totalSymbol  = input.symbol("CRYPTOCAP:TOTALES", "TOTALES")
+total2Symbol = input.symbol("CRYPTOCAP:TOTAL2ES", "TOTAL2ES")
+total3Symbol = input.symbol("CRYPTOCAP:TOTAL3ES", "TOTAL3ES")
+btcdSymbol   = input.symbol("CRYPTOCAP:BTC.D", "BTC Dominance")
+
+tf24 = input.timeframe("D", "24H Direction Filter")
+tf12 = input.timeframe("720", "12H Direction Filter")
+tf8 = input.timeframe("480", "8H Regime")
+tf4 = input.timeframe("240", "4H Regime")
+tf1 = input.timeframe("60", "1H Timing")
+tf5 = input.timeframe("5", "5M Execution")
+maxLeverage = input.float(2.0, "TV Suggested Max Leverage", minval=0.0, maxval=2.0)
+passphrase = input.string("", "Webhook Passphrase", display=display.none)
+
+tfFlags(frame) =>
+    [btcClose, btcEma9, btcEma20, btcEma60, btcRsi14, btcLowest7, btcHighest7, barCloseMs] = request.security(btcSymbol, frame, [close, ta.ema(close, 9), ta.ema(close, 20), ta.ema(close, 60), ta.rsi(close, 14), ta.lowest(low, 7), ta.highest(high, 7), time_close], barmerge.gaps_off, barmerge.lookahead_off)
+    [totalEma20, totalEma60] = request.security(totalSymbol, frame, [ta.ema(close, 20), ta.ema(close, 60)], barmerge.gaps_off, barmerge.lookahead_off)
+    [total2Ema20, total2Ema60] = request.security(total2Symbol, frame, [ta.ema(close, 20), ta.ema(close, 60)], barmerge.gaps_off, barmerge.lookahead_off)
+    [total3Ema20, total3Ema60] = request.security(total3Symbol, frame, [ta.ema(close, 20), ta.ema(close, 60)], barmerge.gaps_off, barmerge.lookahead_off)
+    [btcdEma20, btcdEma60] = request.security(btcdSymbol, frame, [ta.ema(close, 20), ta.ema(close, 60)], barmerge.gaps_off, barmerge.lookahead_off)
+    btcUp = btcEma20 > btcEma60
+    btcDown = btcEma20 < btcEma60
+    totalUp = totalEma20 > totalEma60
+    totalDown = totalEma20 < totalEma60
+    total2Up = total2Ema20 > total2Ema60
+    total2Down = total2Ema20 < total2Ema60
+    total3Up = total3Ema20 > total3Ema60
+    total3Weak = total3Ema20 < total3Ema60
+    btcdUp = btcdEma20 > btcdEma60
+    btcdDown = btcdEma20 < btcdEma60
+    btcBounce30mPct = (btcClose / btcLowest7 - 1.0) * 100.0
+    btcPullback30mPct = (btcClose / btcHighest7 - 1.0) * 100.0
+    btcFastBull = btcClose > btcEma9 and btcClose > btcEma20 and btcRsi14 >= 55 and btcBounce30mPct >= 0.18
+    btcFastBear = btcClose < btcEma9 and btcClose < btcEma20 and btcRsi14 <= 45 and btcPullback30mPct <= -0.08
+    [btcUp, btcDown, btcFastBull, btcFastBear, totalUp, totalDown, total2Up, total2Down, total3Up, total3Weak, btcdUp, btcdDown, barCloseMs]
+
+tfScore(btcUp, btcDown, totalUp, totalDown, total2Up, total2Down, btcdUp, btcdDown) =>
+    (btcUp ? 40.0 : btcDown ? -40.0 : 0.0) +
+     (totalUp ? 25.0 : totalDown ? -25.0 : 0.0) +
+     (total2Up ? 25.0 : total2Down ? -25.0 : 0.0) +
+     (btcdDown ? 10.0 : btcdUp ? -10.0 : 0.0)
+
+tfJson(name, btcUp, btcDown, btcFastBull, btcFastBear, totalUp, totalDown, total2Up, total2Down, total3Up, total3Weak, btcdUp, btcdDown) =>
+    '"' + name + '":{' +
+     '"btc_up":' + str.tostring(btcUp) + ',' +
+     '"btc_down":' + str.tostring(btcDown) + ',' +
+     '"btc_fast_bull":' + str.tostring(btcFastBull) + ',' +
+     '"btc_fast_bear":' + str.tostring(btcFastBear) + ',' +
+     '"total_up":' + str.tostring(totalUp) + ',' +
+     '"total_down":' + str.tostring(totalDown) + ',' +
+     '"total2_up":' + str.tostring(total2Up) + ',' +
+     '"total2_down":' + str.tostring(total2Down) + ',' +
+     '"total3_up":' + str.tostring(total3Up) + ',' +
+     '"total3_weak":' + str.tostring(total3Weak) + ',' +
+     '"btcd_up":' + str.tostring(btcdUp) + ',' +
+     '"btcd_down":' + str.tostring(btcdDown) + '}'
+
+[btcUp24, btcDown24, btcFastBull24, btcFastBear24, totalUp24, totalDown24, total2Up24, total2Down24, total3Up24, total3Weak24, btcdUp24, btcdDown24, barCloseMs24] = tfFlags(tf24)
+[btcUp12, btcDown12, btcFastBull12, btcFastBear12, totalUp12, totalDown12, total2Up12, total2Down12, total3Up12, total3Weak12, btcdUp12, btcdDown12, barCloseMs12] = tfFlags(tf12)
+[btcUp8, btcDown8, btcFastBull8, btcFastBear8, totalUp8, totalDown8, total2Up8, total2Down8, total3Up8, total3Weak8, btcdUp8, btcdDown8, barCloseMs8] = tfFlags(tf8)
+[btcUp4, btcDown4, btcFastBull4, btcFastBear4, totalUp4, totalDown4, total2Up4, total2Down4, total3Up4, total3Weak4, btcdUp4, btcdDown4, barCloseMs4] = tfFlags(tf4)
+[btcUp1, btcDown1, btcFastBull1, btcFastBear1, totalUp1, totalDown1, total2Up1, total2Down1, total3Up1, total3Weak1, btcdUp1, btcdDown1, barCloseMs1] = tfFlags(tf1)
+[btcUp5, btcDown5, btcFastBull5, btcFastBear5, totalUp5, totalDown5, total2Up5, total2Down5, total3Up5, total3Weak5, btcdUp5, btcdDown5, barCloseMs5] = tfFlags(tf5)
+
+score24 = tfScore(btcUp24, btcDown24, totalUp24, totalDown24, total2Up24, total2Down24, btcdUp24, btcdDown24)
+score12 = tfScore(btcUp12, btcDown12, totalUp12, totalDown12, total2Up12, total2Down12, btcdUp12, btcdDown12)
+score8 = tfScore(btcUp8, btcDown8, totalUp8, totalDown8, total2Up8, total2Down8, btcdUp8, btcdDown8)
+score4 = tfScore(btcUp4, btcDown4, totalUp4, totalDown4, total2Up4, total2Down4, btcdUp4, btcdDown4)
+score1 = tfScore(btcUp1, btcDown1, totalUp1, totalDown1, total2Up1, total2Down1, btcdUp1, btcdDown1)
+score5 = tfScore(btcUp5, btcDown5, totalUp5, totalDown5, total2Up5, total2Down5, btcdUp5, btcdDown5)
+mtfScore = score24 * 0.25 + score12 * 0.25 + score8 * 0.20 + score4 * 0.20 + score1 * 0.10
+
+signalId = "MTF_SERVER_DECIDES_" + tf5 + "_" + str.tostring(barCloseMs5)
+timeframesJson = '"timeframes":{' +
+     tfJson("24h", btcUp24, btcDown24, btcFastBull24, btcFastBear24, totalUp24, totalDown24, total2Up24, total2Down24, total3Up24, total3Weak24, btcdUp24, btcdDown24) + ',' +
+     tfJson("12h", btcUp12, btcDown12, btcFastBull12, btcFastBear12, totalUp12, totalDown12, total2Up12, total2Down12, total3Up12, total3Weak12, btcdUp12, btcdDown12) + ',' +
+     tfJson("8h", btcUp8, btcDown8, btcFastBull8, btcFastBear8, totalUp8, totalDown8, total2Up8, total2Down8, total3Up8, total3Weak8, btcdUp8, btcdDown8) + ',' +
+     tfJson("4h", btcUp4, btcDown4, btcFastBull4, btcFastBear4, totalUp4, totalDown4, total2Up4, total2Down4, total3Up4, total3Weak4, btcdUp4, btcdDown4) + ',' +
+     tfJson("1h", btcUp1, btcDown1, btcFastBull1, btcFastBear1, totalUp1, totalDown1, total2Up1, total2Down1, total3Up1, total3Weak1, btcdUp1, btcdDown1) + ',' +
+     tfJson("5m", btcUp5, btcDown5, btcFastBull5, btcFastBear5, totalUp5, totalDown5, total2Up5, total2Down5, total3Up5, total3Weak5, btcdUp5, btcdDown5) + '}'
+
+json = '{"schema":"crypto_regime_v1",' +
+     '"source":"tradingview",' +
+     '"server_decides":true,' +
+     '"passphrase":"' + passphrase + '",' +
+     '"regime":"RANGE",' +
+     '"target_leverage":0,' +
+     '"suggested_target_leverage":' + str.tostring(maxLeverage) + ',' +
+     '"score":' + str.tostring(mtfScore) + ',' +
+     '"btc_up":' + str.tostring(btcUp5) + ',' +
+     '"btc_down":' + str.tostring(btcDown5) + ',' +
+     '"btc_fast_bull":' + str.tostring(btcFastBull5) + ',' +
+     '"btc_fast_bear":' + str.tostring(btcFastBear5) + ',' +
+     '"total_up":' + str.tostring(totalUp5) + ',' +
+     '"total_down":' + str.tostring(totalDown5) + ',' +
+     '"total2_up":' + str.tostring(total2Up5) + ',' +
+     '"total2_down":' + str.tostring(total2Down5) + ',' +
+     '"total3_up":' + str.tostring(total3Up5) + ',' +
+     '"total3_weak":' + str.tostring(total3Weak5) + ',' +
+     '"btcd_up":' + str.tostring(btcdUp5) + ',' +
+     '"btcd_down":' + str.tostring(btcdDown5) + ',' +
+     '"tf":"' + tf5 + '",' +
+     '"confirmed":true,' +
+     '"time_ms":' + str.tostring(timenow) + ',' +
+     '"bar_time_ms":' + str.tostring(barCloseMs5) + ',' +
+     '"signal_id":"' + signalId + '",' +
+     timeframesJson + '}'
+
+newSignalClose = barstate.isconfirmed and not na(barCloseMs5[1]) and barCloseMs5 != barCloseMs5[1]
+if newSignalClose
+    alert(json, alert.freq_once_per_bar_close)
+
+plot(mtfScore, title="MTF Score")
+plot(score5, title="5M Execution Score")

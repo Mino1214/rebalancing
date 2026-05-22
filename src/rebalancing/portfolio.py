@@ -41,6 +41,9 @@ class PortfolioBuilder:
 
     def select_long_universe(self, candidates: list[MarketCandidate]) -> list[MarketCandidate]:
         eligible = [candidate for candidate in candidates if self._eligible(candidate)]
+        market_cap_matched = [candidate for candidate in eligible if candidate.market_cap_rank is not None]
+        if market_cap_matched:
+            eligible = market_cap_matched
         return sorted(
             eligible,
             key=self._dominance_sort_key,

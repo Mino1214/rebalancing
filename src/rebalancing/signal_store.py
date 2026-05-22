@@ -7,7 +7,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from .tradingview import TradingViewAlert, TradingViewAlertError
+from .tradingview import (
+    TradingViewAlert,
+    TradingViewAlertError,
+    TradingViewServerDecision,
+    finalize_tradingview_alert,
+)
 
 
 DEFAULT_MAX_RECORDS = 200
@@ -44,11 +49,17 @@ def record_tradingview_alert(
     alert = TradingViewAlert.parse(sanitized)
     max_leverage = _env_float("ENGINE_TV_MAX_LEVERAGE", 2.0)
     max_age_seconds = _optional_env_int("ENGINE_TV_MAX_ALERT_AGE_SECONDS")
-    errors = alert.validate(max_leverage=max_leverage, max_age_seconds=max_age_seconds)
+    errors = alert.validate(
+        max_leverage=max_leverage,
+        max_age_seconds=max_age_seconds,
+        enforce_target_leverage=False,
+        validate_regime_consistency=False,
+    )
     if errors:
         raise TradingViewAlertError("; ".join(errors))
 
-    record = _alert_record(alert, sanitized)
+    alert, decision = finalize_tradingview_alert(alert, max_leverage=max_leverage)
+    record = _alert_record(alert, sanitized, decision)
     path = path or signal_store_path()
     max_records = max_records or _env_int("ENGINE_SIGNAL_STORE_MAX_RECORDS", DEFAULT_MAX_RECORDS)
     records = _read_records(path)
@@ -78,16 +89,28 @@ def tradingview_alert_events(*, limit: int = 10, path: Path | None = None) -> li
     return [_event_from_record(record) for record in recent_tradingview_alerts(limit=limit, path=path)]
 
 
-def _alert_record(alert: TradingViewAlert, payload: Mapping[str, Any]) -> dict[str, Any]:
+def _alert_record(
+    alert: TradingViewAlert,
+    payload: Mapping[str, Any],
+    decision: TradingViewServerDecision,
+) -> dict[str, Any]:
     received_at_ms = _int_or_now(payload.get("received_at_ms"))
     forwarded_at_ms = _optional_int(payload.get("forwarded_at_ms"))
     return {
         "schema": alert.schema,
         "source": alert.source,
+        "decision_source": "server",
+        "decision_action": decision.action.value,
+        "decision_reason": decision.reason,
+        "source_regime": decision.source_regime.value,
+        "source_target_leverage": decision.source_target_leverage,
         "regime": alert.regime.value,
         "target_leverage": alert.target_leverage,
+        "score": decision.score,
         "btc_up": alert.btc_up,
         "btc_down": alert.btc_down,
+        "btc_fast_bull": alert.btc_fast_bull,
+        "btc_fast_bear": alert.btc_fast_bear,
         "total_up": alert.total_up,
         "total_down": alert.total_down,
         "total2_up": alert.total2_up,
@@ -103,6 +126,7 @@ def _alert_record(alert: TradingViewAlert, payload: Mapping[str, Any]) -> dict[s
         "signal_id": alert.dedupe_key(),
         "received_at_ms": received_at_ms,
         "forwarded_at_ms": forwarded_at_ms,
+        **({"timeframes": dict(alert.timeframes)} if alert.timeframes else {}),
     }
 
 
@@ -110,12 +134,13 @@ def _event_from_record(record: Mapping[str, Any]) -> dict[str, str]:
     regime = str(record.get("regime", "-"))
     tf = str(record.get("tf") or "-")
     leverage = record.get("target_leverage", 0)
+    action = str(record.get("decision_action") or "ENTER")
     signal_id = str(record.get("signal_id", "-"))
     short_id = signal_id if len(signal_id) <= 32 else f"{signal_id[:29]}..."
     return {
         "time": _iso_from_ms(_int_or_now(record.get("received_at_ms"))),
         "kind": "ALERT",
-        "message": f"TradingView {regime} tf={tf} leverage={leverage} accepted ({short_id})",
+        "message": f"TradingView {regime} {action} tf={tf} leverage={leverage} accepted ({short_id})",
     }
 
 
