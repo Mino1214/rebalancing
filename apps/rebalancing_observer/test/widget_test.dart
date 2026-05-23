@@ -3,6 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:rebalancing_observer/main.dart';
 
+Future<void> pumpUi(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 650));
+}
+
 void main() {
   test('snapshot parses learning status payload', () {
     final snapshot = EngineSnapshot.fromJson({
@@ -57,11 +62,13 @@ void main() {
     await tester.pumpWidget(
       RebalancingObserverApp(initialSnapshot: EngineSnapshot.sample()),
     );
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
-    expect(find.text('운영 요약'), findsOneWidget);
+    expect(find.text('운영 현황'), findsOneWidget);
+    expect(find.text('Live Flow'), findsOneWidget);
+    expect(find.text('현재 현황'), findsOneWidget);
     expect(find.text('손익 추이'), findsOneWidget);
-    expect(find.text('요약'), findsWidgets);
+    expect(find.text('현황'), findsWidgets);
     expect(find.text('학습'), findsWidgets);
     expect(find.text('포지션'), findsWidgets);
     expect(find.text('주문'), findsWidgets);
@@ -85,12 +92,12 @@ void main() {
     await tester.pumpWidget(
       RebalancingObserverApp(initialSnapshot: EngineSnapshot.sample()),
     );
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     await tester.tap(find.text('로그').last);
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
     await tester.tap(find.textContaining('트레이딩뷰 웹훅').first);
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     expect(find.text('엔진 결과'), findsOneWidget);
     expect(find.text('TradingView'), findsOneWidget);
@@ -98,7 +105,7 @@ void main() {
     expect(find.text('Learning'), findsOneWidget);
     expect(find.text('Market'), findsOneWidget);
     await tester.drag(find.byType(ListView).last, const Offset(0, -700));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
     expect(find.text('Signal Flags'), findsOneWidget);
     expect(find.text('주문'), findsWidgets);
     expect(find.textContaining('매수'), findsNothing);
@@ -115,10 +122,10 @@ void main() {
     await tester.pumpWidget(
       RebalancingObserverApp(initialSnapshot: EngineSnapshot.sample()),
     );
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     await tester.tap(find.text('로그').last);
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     expect(find.text('2개 포지션을 담았어요'), findsOneWidget);
     expect(find.text('매수'), findsOneWidget);
@@ -167,12 +174,12 @@ void main() {
     });
 
     await tester.pumpWidget(RebalancingObserverApp(initialSnapshot: snapshot));
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     await tester.tap(find.text('포지션').last);
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
     await tester.tap(find.text('BTCUSDT').first);
-    await tester.pumpAndSettle();
+    await pumpUi(tester);
 
     expect(find.text('포지션 상세'), findsOneWidget);
     expect(find.text('진입가'), findsOneWidget);

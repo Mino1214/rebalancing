@@ -234,7 +234,7 @@ class _ObserverHomePageState extends State<ObserverHomePage> {
                 NavigationDestination(
                   icon: Icon(PhosphorIconsRegular.squaresFour, size: 23),
                   selectedIcon: Icon(PhosphorIconsFill.squaresFour, size: 23),
-                  label: '요약',
+                  label: '현황',
                 ),
                 NavigationDestination(
                   icon: Icon(PhosphorIconsRegular.chartPieSlice, size: 23),
@@ -312,17 +312,697 @@ class SummaryView extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () async {},
       child: WatchListScaffold(
-        title: '운영 요약',
+        title: '운영 현황',
         subtitle: '${sourceLabel(snapshot.source)} · ${snapshot.lastUpdated}',
         metric: compactUsdt(snapshot.equity),
         accent: regimeColor(snapshot.regime),
-        chart: PnlChartCard(
-          daily: snapshot.dailyPnlPct,
-          weekly: snapshot.weeklyPnlPct,
-          monthly: snapshot.monthlyPnlPct,
+        chart: Column(
+          children: [
+            LiveFlowCard(snapshot: snapshot),
+            CurrentStatusCard(snapshot: snapshot),
+            PnlChartCard(
+              daily: snapshot.dailyPnlPct,
+              weekly: snapshot.weeklyPnlPct,
+              monthly: snapshot.monthlyPnlPct,
+            ),
+          ],
         ),
         items: summaryItems(snapshot),
       ),
+    );
+  }
+}
+
+class LiveFlowCard extends StatefulWidget {
+  const LiveFlowCard({super.key, required this.snapshot});
+
+  final EngineSnapshot snapshot;
+
+  @override
+  State<LiveFlowCard> createState() => _LiveFlowCardState();
+}
+
+class _LiveFlowCardState extends State<LiveFlowCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final snapshot = widget.snapshot;
+    final accent = regimeColor(snapshot.regime);
+    final latestLog = snapshot.events.isEmpty ? null : snapshot.events.first;
+    final stages = [
+      FlowStageData(
+        label: 'SIGNAL',
+        value: signalActionLabel(snapshot.tradingViewSignal),
+        icon: PhosphorIconsRegular.broadcast,
+        color: accent,
+      ),
+      FlowStageData(
+        label: 'ENGINE',
+        value: decisionLabel(snapshot),
+        icon: PhosphorIconsRegular.cpu,
+        color: accent,
+      ),
+      FlowStageData(
+        label: 'ORDER',
+        value: '${snapshot.orders.length}개',
+        icon: PhosphorIconsRegular.receipt,
+        color: snapshot.orders.isEmpty
+            ? const Color(0xFF787B86)
+            : const Color(0xFFC08A17),
+      ),
+      FlowStageData(
+        label: 'POSITION',
+        value: '${snapshot.positions.length}개',
+        icon: PhosphorIconsRegular.chartPieSlice,
+        color: snapshot.positions.isEmpty
+            ? const Color(0xFF787B86)
+            : const Color(0xFF2563EB),
+      ),
+      FlowStageData(
+        label: 'LOG',
+        value: latestLog == null ? '-' : eventMinuteLabel(latestLog.time),
+        icon: PhosphorIconsRegular.listBullets,
+        color: latestLog == null
+            ? const Color(0xFF787B86)
+            : eventColor(latestLog.kind),
+      ),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 13),
+      decoration: BoxDecoration(
+        color: const Color(0xFF11151D),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  PhosphorIconsRegular.arrowsLeftRight,
+                  size: 17,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Live Flow',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 0,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${signalSourceLabel(snapshot.tradingViewSignal)} · ${statusFreshnessLabel(snapshot)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF9AA1AF),
+                        letterSpacing: 0,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              StatusPill(label: modeLabel(snapshot.mode), color: accent),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 116,
+            child: LayoutBuilder(
+              builder: (context, _) {
+                return AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      painter: FlowTrackPainter(
+                        progress: _controller.value,
+                        accent: accent,
+                        stageColors: stages
+                            .map((stage) => stage.color)
+                            .toList(growable: false),
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var index = 0; index < stages.length; index++) ...[
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: FlowStageNode(
+                              stage: stages[index],
+                              active: flowActiveIndex(snapshot) == index,
+                            ),
+                          ),
+                        ),
+                        if (index != stages.length - 1)
+                          const SizedBox(width: 7),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class FlowStageData {
+  const FlowStageData({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+}
+
+class FlowStageNode extends StatelessWidget {
+  const FlowStageNode({
+    super.key,
+    required this.stage,
+    required this.active,
+  });
+
+  final FlowStageData stage;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      constraints: const BoxConstraints(minHeight: 82),
+      padding: const EdgeInsets.fromLTRB(7, 8, 7, 8),
+      decoration: BoxDecoration(
+        color: active
+            ? stage.color.withValues(alpha: 0.22)
+            : Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: active
+              ? stage.color.withValues(alpha: 0.70)
+              : Colors.white.withValues(alpha: 0.10),
+        ),
+        boxShadow: active
+            ? [
+                BoxShadow(
+                  color: stage.color.withValues(alpha: 0.20),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                ),
+              ]
+            : const [],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: stage.color.withValues(alpha: active ? 0.28 : 0.16),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(stage.icon, size: 16, color: stage.color),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            stage.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF9AA1AF),
+              letterSpacing: 0,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            stage.value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 0,
+              height: 1.05,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class FlowTrackPainter extends CustomPainter {
+  const FlowTrackPainter({
+    required this.progress,
+    required this.accent,
+    required this.stageColors,
+  });
+
+  final double progress;
+  final Color accent;
+  final List<Color> stageColors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0 || stageColors.length < 2) return;
+
+    final y = size.height * 0.18;
+    final left = 18.0;
+    final right = size.width - 18.0;
+    final track = Paint()
+      ..color = Colors.white.withValues(alpha: 0.13)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(left, y), Offset(right, y), track);
+
+    final glow = Paint()
+      ..color = accent.withValues(alpha: 0.18)
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawLine(Offset(left, y), Offset(right, y), glow);
+
+    final segment = (right - left) / (stageColors.length - 1);
+    for (var index = 0; index < stageColors.length; index++) {
+      final x = left + segment * index;
+      final nodePaint = Paint()
+        ..color = stageColors[index].withValues(alpha: 0.86);
+      canvas.drawCircle(Offset(x, y), 4.8, nodePaint);
+      canvas.drawCircle(
+        Offset(x, y),
+        9.5,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..color = stageColors[index].withValues(alpha: 0.34),
+      );
+    }
+
+    for (var index = 0; index < 3; index++) {
+      final particleProgress = (progress + index / 3) % 1.0;
+      final eased = Curves.easeInOut.transform(particleProgress);
+      final x = left + (right - left) * eased;
+      final pulse = 0.65 + 0.35 * (1 - (particleProgress * 2 - 1).abs());
+      final color = Color.lerp(accent, Colors.white, 0.24)!;
+      canvas.drawCircle(
+        Offset(x, y),
+        13 * pulse,
+        Paint()..color = color.withValues(alpha: 0.10),
+      );
+      canvas.drawCircle(
+        Offset(x, y),
+        5.5 * pulse,
+        Paint()..color = color.withValues(alpha: 0.92),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant FlowTrackPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.accent != accent ||
+        oldDelegate.stageColors != stageColors;
+  }
+}
+
+class CurrentStatusCard extends StatelessWidget {
+  const CurrentStatusCard({super.key, required this.snapshot});
+
+  final EngineSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final paper = snapshot.paperAccount;
+    final signal = snapshot.tradingViewSignal;
+    final latestLog = snapshot.events.isEmpty ? null : snapshot.events.first;
+    final metrics = [
+      StatusMetricData(
+        label: '판정',
+        value: decisionLabel(snapshot),
+        meta: '${regimeLabel(snapshot.regime)} · ${modeLabel(snapshot.mode)}',
+        accent: regimeColor(snapshot.regime),
+      ),
+      StatusMetricData(
+        label: '노출',
+        value: '${snapshot.leverage.toStringAsFixed(2)}x',
+        meta:
+            '${compactUsdt(snapshot.currentExposure)} / ${compactUsdt(snapshot.targetExposure)}',
+        accent: snapshot.leverage <= 2
+            ? const Color(0xFF2F8F75)
+            : const Color(0xFFC8404A),
+      ),
+      StatusMetricData(
+        label: '손익',
+        value: paper == null
+            ? pct(snapshot.dailyPnlPct)
+            : fmtNullableSignedUsdt(paper.totalPnl),
+        meta: paper == null
+            ? '일간 기준'
+            : '${pct(paper.totalPnlPct)} · 비용 ${compactUsdt(paper.tradingCosts)}',
+        accent: paper == null
+            ? pnlColor(snapshot.dailyPnlPct)
+            : pnlColor(paper.totalPnlPct),
+      ),
+      StatusMetricData(
+        label: '포지션',
+        value: '${snapshot.positions.length}개',
+        meta: '주문 ${snapshot.orders.length}개',
+        accent: snapshot.positions.isEmpty
+            ? const Color(0xFF787B86)
+            : const Color(0xFF2563EB),
+      ),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FA),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE8EAEE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: regimeColor(snapshot.regime).withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  PhosphorIconsFill.chartLineUp,
+                  size: 17,
+                  color: regimeColor(snapshot.regime),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '현재 현황',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF15171E),
+                        letterSpacing: 0,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      statusFreshnessLabel(snapshot),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF8A8D94),
+                        letterSpacing: 0,
+                        height: 1.15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              StatusPill(
+                label: signalActionLabel(signal),
+                color: regimeColor(snapshot.regime),
+              ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 520 ? 4 : 2;
+              const gap = 8.0;
+              final width =
+                  (constraints.maxWidth - gap * (columns - 1)) / columns;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final metric in metrics)
+                    SizedBox(
+                      width: width,
+                      child: StatusMetricTile(metric: metric),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          StatusInlineRow(
+            icon: PhosphorIconsRegular.broadcast,
+            label: '신호',
+            value: signalSourceLabel(signal),
+            meta: signalReasonSummary(signal),
+            accent: regimeColor(snapshot.regime),
+          ),
+          const SizedBox(height: 8),
+          StatusInlineRow(
+            icon: PhosphorIconsRegular.brain,
+            label: '학습',
+            value:
+                '${learningStageLabel(snapshot.learning.stage)} · ${learningStatusLabel(snapshot.learning.latestRunStatus)}',
+            meta: learningActiveVersionLabel(snapshot.learning),
+            accent: learningColor(snapshot.learning),
+          ),
+          const SizedBox(height: 8),
+          StatusInlineRow(
+            icon: PhosphorIconsRegular.listBullets,
+            label: '최근 로그',
+            value: latestLog == null ? '이벤트 없음' : eventLogSummary(latestLog),
+            meta: latestLog == null ? '-' : eventMinuteLabel(latestLog.time),
+            accent: latestLog == null
+                ? const Color(0xFF787B86)
+                : eventColor(latestLog.kind),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class StatusMetricData {
+  const StatusMetricData({
+    required this.label,
+    required this.value,
+    required this.meta,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final String meta;
+  final Color accent;
+}
+
+class StatusMetricTile extends StatelessWidget {
+  const StatusMetricTile({super.key, required this.metric});
+
+  final StatusMetricData metric;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 72),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE8EAEE)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            metric.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF8A8D94),
+              letterSpacing: 0,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            metric.value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: metric.accent,
+              letterSpacing: 0,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            metric.meta,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFAEB2BA),
+              letterSpacing: 0,
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class StatusInlineRow extends StatelessWidget {
+  const StatusInlineRow({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.meta,
+    required this.accent,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final String meta;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: 0.10),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 14, color: accent),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 54,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF8A8D94),
+              letterSpacing: 0,
+              height: 1.1,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF4E535C),
+              letterSpacing: 0,
+              height: 1.1,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            meta,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFAEB2BA),
+              letterSpacing: 0,
+              height: 1.1,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2111,6 +2791,7 @@ class EngineSnapshot {
     required this.cooldownUntil,
     required this.tradingViewSignal,
     required this.paperRebalance,
+    required this.paperAccount,
     required this.marketInternals,
     required this.learning,
     required this.positions,
@@ -2136,6 +2817,7 @@ class EngineSnapshot {
   final String? cooldownUntil;
   final TradingViewSignal? tradingViewSignal;
   final PaperRebalanceView? paperRebalance;
+  final PaperAccountView? paperAccount;
   final MarketInternalsView marketInternals;
   final LearningView learning;
   final List<PositionView> positions;
@@ -2179,6 +2861,7 @@ class EngineSnapshot {
                 ? (json['paper'] as Map)['last_rebalance']
                 : null),
       ),
+      paperAccount: PaperAccountView.tryParse(json['paper']),
       marketInternals: MarketInternalsView.fromJson(
           json['market_internals'] ?? json['marketInternals']),
       learning: LearningView.fromJson(json['learning']),
@@ -2252,6 +2935,18 @@ class EngineSnapshot {
         closedSymbols: [],
         signalId: 'RANGE_5_1779215700000',
       ),
+      paperAccount: const PaperAccountView(
+        enabled: true,
+        source: 'Paper trading',
+        lastUpdated: '2026-05-19T23:43:00+09:00',
+        initialEquity: 1000,
+        totalPnl: 5.5,
+        totalPnlPct: 0.55,
+        realizedPnl: 1.2,
+        unrealizedPnl: 4.3,
+        tradingCosts: 0.4,
+        turnover: 3300,
+      ),
       marketInternals: const MarketInternalsView(
         source: 'coingecko+binance',
         riskLabel: 'BROAD_RISK_OFF',
@@ -2320,6 +3015,7 @@ class EngineSnapshot {
       cooldownUntil: cooldownUntil,
       tradingViewSignal: tradingViewSignal,
       paperRebalance: paperRebalance,
+      paperAccount: paperAccount,
       marketInternals: marketInternals,
       learning: learning,
       positions: positions,
@@ -2349,6 +3045,9 @@ class TradingViewSignal {
     required this.barTimeMs,
     required this.signalId,
     this.score,
+    this.source = '',
+    this.decisionAction,
+    this.decisionReason,
   });
 
   final String regime;
@@ -2368,6 +3067,9 @@ class TradingViewSignal {
   final int? barTimeMs;
   final String signalId;
   final double? score;
+  final String source;
+  final String? decisionAction;
+  final String? decisionReason;
 
   static TradingViewSignal? tryParse(Object? raw) {
     if (raw is! Map) return null;
@@ -2394,6 +3096,11 @@ class TradingViewSignal {
       timeMs: toNullableInt(json['time_ms'] ?? json['timeMs']),
       barTimeMs: toNullableInt(json['bar_time_ms'] ?? json['barTimeMs']),
       signalId: (json['signal_id'] ?? json['signalId'] ?? '-').toString(),
+      source: (json['source'] ?? '').toString(),
+      decisionAction:
+          (json['decision_action'] ?? json['decisionAction'])?.toString(),
+      decisionReason:
+          (json['decision_reason'] ?? json['decisionReason'])?.toString(),
     );
   }
 }
@@ -2480,6 +3187,53 @@ class PaperRebalanceView {
       closedSymbols:
           stringListOf(json['closed_symbols'] ?? json['closedSymbols']),
       signalId: (json['signal_id'] ?? json['signalId'] ?? '-').toString(),
+    );
+  }
+}
+
+class PaperAccountView {
+  const PaperAccountView({
+    required this.enabled,
+    required this.source,
+    required this.lastUpdated,
+    required this.initialEquity,
+    required this.totalPnl,
+    required this.totalPnlPct,
+    required this.realizedPnl,
+    required this.unrealizedPnl,
+    required this.tradingCosts,
+    required this.turnover,
+  });
+
+  final bool enabled;
+  final String source;
+  final String lastUpdated;
+  final double initialEquity;
+  final double totalPnl;
+  final double totalPnlPct;
+  final double realizedPnl;
+  final double unrealizedPnl;
+  final double tradingCosts;
+  final double turnover;
+
+  static PaperAccountView? tryParse(Object? raw) {
+    if (raw is! Map) return null;
+    return PaperAccountView.fromJson(Map<String, dynamic>.from(raw));
+  }
+
+  factory PaperAccountView.fromJson(Map<String, dynamic> json) {
+    return PaperAccountView(
+      enabled: json['enabled'] != false,
+      source: (json['source'] ?? 'Paper trading').toString(),
+      lastUpdated:
+          (json['last_updated'] ?? json['lastUpdated'] ?? '').toString(),
+      initialEquity: toDouble(json['initial_equity'] ?? json['initialEquity']),
+      totalPnl: toDouble(json['total_pnl'] ?? json['totalPnl']),
+      totalPnlPct: toDouble(json['total_pnl_pct'] ?? json['totalPnlPct']),
+      realizedPnl: toDouble(json['realized_pnl'] ?? json['realizedPnl']),
+      unrealizedPnl: toDouble(json['unrealized_pnl'] ?? json['unrealizedPnl']),
+      tradingCosts: toDouble(json['trading_costs'] ?? json['tradingCosts']),
+      turnover: toDouble(json['turnover']),
     );
   }
 }
@@ -3557,6 +4311,58 @@ String logSubtitle(EngineSnapshot snapshot) {
     return '최근 이벤트 없음';
   }
   return '최근 ${eventMinuteLabel(snapshot.events.first.time)} 수신';
+}
+
+int flowActiveIndex(EngineSnapshot snapshot) {
+  if (snapshot.orders.isNotEmpty) return 2;
+  if (snapshot.positions.isNotEmpty) return 3;
+  if (snapshot.events.isNotEmpty) return 4;
+  if (snapshot.tradingViewSignal != null) return 1;
+  return 0;
+}
+
+String statusFreshnessLabel(EngineSnapshot snapshot) {
+  final paperTime = snapshot.paperAccount?.lastUpdated ?? '';
+  if (paperTime.isNotEmpty) {
+    return '페이퍼 ${eventMinuteLabel(paperTime)} 갱신 · ${sourceLabel(snapshot.source)}';
+  }
+  return '${sourceLabel(snapshot.source)} · ${eventMinuteLabel(snapshot.lastUpdated)} 갱신';
+}
+
+String signalActionLabel(TradingViewSignal? signal) {
+  if (signal == null) return '대기';
+  final action = (signal.decisionAction ?? '').toUpperCase();
+  if (action == 'ENTER') return '진입';
+  if (action == 'EXIT') return '청산';
+  if (action == 'HOLD') return '유지';
+  return signal.targetLeverage > 0 ? '진입' : '관망';
+}
+
+String signalSourceLabel(TradingViewSignal? signal) {
+  if (signal == null) return '신호 대기';
+  final source = signal.source.toLowerCase();
+  if (source == 'internal_engine') return '내부 엔진 신호';
+  if (source == 'tradingview') return 'TradingView 신호';
+  if (signal.timeframe == 'internal') return '내부 엔진 신호';
+  return source.isEmpty ? 'TradingView 신호' : signal.source;
+}
+
+String signalReasonSummary(TradingViewSignal? signal) {
+  if (signal == null) return '-';
+  final reason = signal.decisionReason?.trim() ?? '';
+  if (reason.isNotEmpty) return compactText(reason, 34);
+  return '${signal.timeframe} · ${signal.signalId}';
+}
+
+String compactText(String text, int limit) {
+  if (text.characters.length <= limit) return text;
+  return '${text.characters.take(limit).join()}...';
+}
+
+Color pnlColor(double value) {
+  if (value > 0) return const Color(0xFF2F8F75);
+  if (value < 0) return const Color(0xFFC8404A);
+  return const Color(0xFF787B86);
 }
 
 double displayRegimeScore(EngineSnapshot snapshot) {
