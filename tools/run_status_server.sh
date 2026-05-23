@@ -1,9 +1,14 @@
 #!/bin/zsh
 set -u
 
-PROJECT_ROOT="/Users/myno/Desktop/rebalancing"
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STATE_DIR="$PROJECT_ROOT/.state"
 LOG_FILE="$STATE_DIR/status_server.log"
+PYTHON_BIN="${PYTHON_BIN:-$PROJECT_ROOT/.venv/bin/python}"
+
+if [[ ! -x "$PYTHON_BIN" ]]; then
+  PYTHON_BIN="$(command -v python3 || command -v python)"
+fi
 
 mkdir -p "$STATE_DIR"
 cd "$PROJECT_ROOT" || exit 78
@@ -44,4 +49,4 @@ exec env \
   MARKET_INTERNALS_UNIVERSE_LIMIT="200" \
   MARKET_INTERNALS_BREADTH_LIMIT="100" \
   MARKET_INTERNALS_BREADTH_WORKERS="8" \
-  "${PYTHON_BIN:-/opt/local/bin/python}" -m rebalancing.status_server
+  "$PYTHON_BIN" -m rebalancing.status_server

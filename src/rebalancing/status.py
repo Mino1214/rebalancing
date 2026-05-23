@@ -8,6 +8,8 @@ from typing import Any
 
 from .binance import BinanceCredentials, BinanceFuturesClient, live_trading_enabled
 from .engine import RebalancingEngine
+from .learning.params import active_engine_config
+from .learning.status import learning_status_payload
 from .market_internals import MarketInternals, apply_market_cap_dominance, build_market_internals
 from .models import (
     AccountSnapshot,
@@ -19,6 +21,7 @@ from .models import (
     RebalanceDecision,
 )
 from .paper import paper_status_payload
+from .recording import record_decision, record_executions
 from .signal_store import latest_tradingview_alert, tradingview_alert_events
 
 
@@ -32,9 +35,10 @@ class RuntimeDecision:
     internals: MarketInternals
     events: list[dict[str, str]]
     live_data: bool
+    decision_record_id: int | None = None
 
 
-def build_runtime_decision(*, force_rebalance: bool = False) -> RuntimeDecision:
+def build_runtime_decision(*, force_rebalance: bool = False, record_mode: str | None = None) -> RuntimeDecision:
     now = datetime.now(timezone.utc)
     events: list[dict[str, str]] = []
     client = _binance_client(events)
@@ -46,7 +50,7 @@ def build_runtime_decision(*, force_rebalance: bool = False) -> RuntimeDecision:
     events.extend(_event("INTERNALS", message) for message in internals.messages[:20])
     btc = _btc_snapshot(client, events)
 
-    decision = RebalancingEngine().evaluate(
+    decision = RebalancingEngine(active_engine_config()).evaluate(
         now=now,
         state=EngineState(),
         account=account,
@@ -56,6 +60,17 @@ def build_runtime_decision(*, force_rebalance: bool = False) -> RuntimeDecision:
         force_rebalance=force_rebalance,
     )
 
+    decision_record_id = record_decision(
+        decision,
+        {
+            "account": account,
+            "positions": positions,
+            "candidates": candidates,
+            "btc": btc,
+            "market_internals": internals,
+        },
+        mode=record_mode or ("live" if live_trading_enabled() else "paper"),
+    )
     events.extend(_decision_events(decision))
     return RuntimeDecision(
         client=client,
@@ -66,6 +81,7 @@ def build_runtime_decision(*, force_rebalance: bool = False) -> RuntimeDecision:
         internals=internals,
         events=events,
         live_data=any(event["kind"] == "BINANCE" for event in events),
+        decision_record_id=decision_record_id,
     )
 
 
@@ -94,6 +110,7 @@ def runtime_status_payload(runtime: RuntimeDecision) -> dict[str, Any]:
         paper_events,
         runtime.events,
     )
+    learning = learning_status_payload()
 
     return {
         "source": paper["source"] if paper else ("Binance live" if runtime.live_data else "Local fallback"),
@@ -120,18 +137,20 @@ def runtime_status_payload(runtime: RuntimeDecision) -> dict[str, Any]:
         else None,
         "live_trading_enabled": live_trading_enabled(),
         "market_internals": runtime.internals.to_payload(),
+        "learning": learning,
         "positions": paper["positions"] if paper else [_position_payload(position) for position in runtime.positions],
         "orders": paper["orders"] if paper else [_order_payload(order) for order in decision.orders],
         "targets": paper["targets"] if paper else [_target_payload(target) for target in decision.target_positions],
         "events": events,
-        "watchlist": _watchlist_payload(runtime, paper=paper),
+        "watchlist": _watchlist_payload(runtime, paper=paper, learning=learning),
     }
 
 
 def execute_runtime_orders(*, live: bool | None = None) -> dict[str, Any]:
-    runtime = build_runtime_decision(force_rebalance=True)
     live = live if live is not None else live_trading_enabled()
+    runtime = build_runtime_decision(force_rebalance=True, record_mode="live" if live else "paper")
     results = runtime.client.execute_planned_orders(runtime.decision.orders, live=live)
+    record_executions(runtime.decision_record_id, results)
     payload = runtime_status_payload(runtime)
     payload["execution_results"] = [
         {
@@ -246,7 +265,12 @@ def _fallback_candidates() -> list[MarketCandidate]:
     ]
 
 
-def _watchlist_payload(runtime: RuntimeDecision, *, paper: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+def _watchlist_payload(
+    runtime: RuntimeDecision,
+    *,
+    paper: dict[str, Any] | None = None,
+    learning: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     decision = runtime.decision
     account = runtime.account
     tv_signal = latest_tradingview_alert()
@@ -269,6 +293,12 @@ def _watchlist_payload(runtime: RuntimeDecision, *, paper: dict[str, Any] | None
             -candidate.quote_volume_24h,
         ),
     )[:10]
+    learning = learning or learning_status_payload()
+    latest_learning = learning.get("latest_run") if isinstance(learning.get("latest_run"), dict) else {}
+    latest_evaluation = (
+        learning.get("latest_evaluation") if isinstance(learning.get("latest_evaluation"), dict) else {}
+    )
+    active_params = learning.get("active_params") if isinstance(learning.get("active_params"), dict) else {}
 
     rows = [
         {
@@ -280,6 +310,16 @@ def _watchlist_payload(runtime: RuntimeDecision, *, paper: dict[str, Any] | None
             "color": _regime_color(regime),
             "marker": "R",
             "meta": regime_meta,
+        },
+        {
+            "symbol": "LEARNING",
+            "title": f"Stage {learning.get('stage', 'BABY')}",
+            "value": str(latest_learning.get("status") or "waiting"),
+            "change": f"eval {learning.get('evaluation_count', 0)}",
+            "change_pct": f"v{active_params.get('version', '-')}",
+            "color": "2F8F75" if latest_learning.get("status") == "ok" else "C08A17",
+            "marker": "L",
+            "meta": str(latest_evaluation.get("summary") or "learning loop"),
         },
         {
             "symbol": "INTERNALS",

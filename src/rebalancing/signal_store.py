@@ -30,6 +30,20 @@ def expected_engine_webhook_token() -> str | None:
         return None
 
 
+def expected_tradingview_passphrase() -> str | None:
+    token = os.environ.get("TV_WEBHOOK_PASSPHRASE", "").strip()
+    if token:
+        return token
+
+    path_value = os.environ.get("TV_WEBHOOK_PASSPHRASE_FILE", "").strip()
+    if not path_value:
+        return None
+    try:
+        return Path(path_value).read_text(encoding="utf-8").strip() or None
+    except FileNotFoundError:
+        return None
+
+
 def engine_webhook_token_path() -> Path:
     return Path(os.environ.get("ENGINE_WEBHOOK_TOKEN_FILE", _state_dir() / "engine_webhook_token"))
 

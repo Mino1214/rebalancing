@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.mino.postgres</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Applications/Postgres.app/Contents/Versions/18/bin/postgres</string>
+    <string>-D</string>
+    <string>/Users/myno-bot/Desktop/bot/.state/postgres_data</string>
+    <string>-k</string>
+    <string>/Users/myno-bot/Desktop/bot/.state/postgres_socket</string>
+    <string>-h</string>
+    <string>127.0.0.1</string>
+    <string>-p</string>
+    <string>5432</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/myno-bot/Desktop/bot</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/myno-bot/Desktop/bot/.state/postgres.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/myno-bot/Desktop/bot/.state/postgres.err.log</string>
+</dict>
+</plist>
